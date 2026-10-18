@@ -4,6 +4,9 @@ export const SEAT_LOCK_TTL_MS = 7 * 60 * 1000;
 /** Maximum seats one user or kiosk session can hold at the same time. */
 export const MAX_LOCKS_PER_HOLDER = 10;
 
+/** Most units of one product in a single order. */
+export const MAX_ITEM_QUANTITY = 10;
+
 /** Kiosk resets its session after this much inactivity. */
 export const KIOSK_IDLE_TIMEOUT_MS = 60 * 1000;
 
@@ -16,7 +19,7 @@ export type Role = (typeof Role)[keyof typeof Role];
 
 export const SeatType = {
   STANDARD: "STANDARD",
-  VIP: "VIP",
+  WHEELCHAIR: "WHEELCHAIR",
 } as const;
 export type SeatType = (typeof SeatType)[keyof typeof SeatType];
 
@@ -33,6 +36,28 @@ export const OrderStatus = {
   FAILED: "FAILED",
 } as const;
 export type OrderStatus = (typeof OrderStatus)[keyof typeof OrderStatus];
+
+export const ProductCategory = {
+  COMBO: "COMBO",
+  SNACK: "SNACK",
+  DRINK: "DRINK",
+  GLASSES: "GLASSES",
+} as const;
+export type ProductCategory = (typeof ProductCategory)[keyof typeof ProductCategory];
+
+export const ShowFormat = {
+  TWO_D: "TWO_D",
+  THREE_D: "THREE_D",
+  IMAX: "IMAX",
+  IMAX_3D: "IMAX_3D",
+} as const;
+export type ShowFormat = (typeof ShowFormat)[keyof typeof ShowFormat];
+
+/** Display order of formats when a day lists several. */
+export const SHOW_FORMATS: readonly ShowFormat[] = ["TWO_D", "THREE_D", "IMAX", "IMAX_3D"];
+
+/** Whether viewers need 3D glasses, so glasses are offered (and only then sold). */
+export const needsGlasses = (format: ShowFormat) => format === "THREE_D" || format === "IMAX_3D";
 
 export const SalesChannel = {
   WEB: "WEB",

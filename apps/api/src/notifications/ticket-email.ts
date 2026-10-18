@@ -1,11 +1,11 @@
 import { createRequire } from "node:module";
-import { CINEMA_TIME_ZONE, type Locale } from "@sinema/shared";
+import { CINEMA_TIME_ZONE, type Locale, type Localized } from "@sinema/shared";
 import { prisma } from "../db.js";
 import { env } from "../env.js";
 import type { TicketEmail } from "./mailer.js";
 
 type Messages = {
-  email: Record<"subject" | "greeting" | "details" | "showTickets" | "linkHint", string>;
+  email: Record<"subject" | "greeting" | "details" | "showTickets" | "linkHint" | "concessions", string>;
   seats: { seatLabel: string };
 };
 
@@ -28,6 +28,12 @@ export const orderLink = (accessToken: string) => `${env.WEB_URL}/orders/${acces
 export const qrImageUrl = (qrToken: string) =>
   `${env.API_URL}/api/tickets/${encodeURIComponent(qrToken)}/qr.png`;
 
+export const concessionQrImageUrl = (qrToken: string) =>
+  `${env.API_URL}/api/concessions/${encodeURIComponent(qrToken)}/qr.png`;
+
+const qrBlock = (label: string, src: string) =>
+  `<p><strong>${escapeHtml(label)}</strong><br><img src="${src}" alt="${escapeHtml(label)}" width="180" height="180"></p>`;
+
 /** Builds the confirmation email for a paid order, in the buyer's language. */
 export async function buildTicketEmail(orderId: string, locale: Locale): Promise<TicketEmail> {
   const order = await prisma.order.findUniqueOrThrow({
@@ -40,6 +46,9 @@ export async function buildTicketEmail(orderId: string, locale: Locale): Promise
         },
         orderBy: [{ seat: { row: "asc" } }, { seat: { number: "asc" } }],
       },
+      items: {
+        include: { product: true, vouchers: { orderBy: { createdAt: "asc" } } },
+      },
     },
   });
   const t = messages[locale];
@@ -51,11 +60,21 @@ export async function buildTicketEmail(orderId: string, locale: Locale): Promise
   }).format(showtime.startsAt);
 
   const ticketsHtml = order.tickets
-    .map((ticket) => {
-      const seat = fill(t.seats.seatLabel, { row: ticket.seat.row, number: ticket.seat.number });
-      return `<p><strong>${escapeHtml(seat)}</strong><br><img src="${qrImageUrl(ticket.qrToken)}" alt="${escapeHtml(seat)}" width="180" height="180"></p>`;
-    })
+    .map((ticket) =>
+      qrBlock(fill(t.seats.seatLabel, { row: ticket.seat.row, number: ticket.seat.number }), qrImageUrl(ticket.qrToken)),
+    )
     .join("");
+  // Each snack, drink or pair of glasses has its own code to show at the stand.
+  const vouchersHtml = order.items
+    .flatMap((item) =>
+      item.vouchers.map((voucher) =>
+        qrBlock((item.product.name as Localized)[locale], concessionQrImageUrl(voucher.qrToken)),
+      ),
+    )
+    .join("");
+  const allHtml = vouchersHtml
+    ? `${ticketsHtml}<h3>${escapeHtml(t.email.concessions)}</h3>${vouchersHtml}`
+    : ticketsHtml;
 
   return {
     to: order.contactEmail,
@@ -67,7 +86,7 @@ export async function buildTicketEmail(orderId: string, locale: Locale): Promise
         showtime: startsAt,
         hall: showtime.hall.name,
       }),
-      tickets_html: ticketsHtml,
+      tickets_html: allHtml,
       order_link: orderLink(order.accessToken),
       show_tickets: t.email.showTickets,
       link_hint: t.email.linkHint,

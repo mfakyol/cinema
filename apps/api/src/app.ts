@@ -5,6 +5,7 @@ import { HttpError } from "./lib/http-error.js";
 import { authenticate } from "./middleware/auth.js";
 import { authRouter } from "./routes/auth.js";
 import { checkoutRouter } from "./routes/checkout.js";
+import { concessionsRouter, productsRouter } from "./routes/concessions.js";
 import { locksRouter } from "./routes/locks.js";
 import { moviesRouter } from "./routes/movies.js";
 import { ordersRouter } from "./routes/orders.js";
@@ -43,6 +44,8 @@ export function createApp() {
   api.use("/movies", moviesRouter);
   api.use("/showtimes", showtimesRouter);
   api.use("/locks", locksRouter);
+  api.use("/products", productsRouter);
+  api.use("/concessions", concessionsRouter);
   api.use("/checkout", checkoutRouter);
   api.use("/orders", ordersRouter);
   api.use("/me", meRouter);

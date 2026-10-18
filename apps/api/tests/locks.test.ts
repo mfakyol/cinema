@@ -58,6 +58,21 @@ describe("seat locks", () => {
     expect(res.body.error.code).toBe("LOCK_LIMIT");
   });
 
+  it("releases a holder's seats in other showtimes when they lock in a new one", async () => {
+    const first = await createFixture();
+    const second = await createFixture();
+    const { token } = await createUser();
+    const other = await createUser();
+
+    await lock(token, first.showtime.id, [first.seats[0]!.id, first.seats[1]!.id]).expect(201);
+    await lock(token, second.showtime.id, [second.seats[0]!.id]).expect(201);
+
+    expect(await prisma.seatLock.count({ where: { showtimeId: first.showtime.id } })).toBe(0);
+    expect(await prisma.seatLock.count({ where: { showtimeId: second.showtime.id } })).toBe(1);
+    // The seats left behind are free for anyone straight away.
+    await lock(other.token, first.showtime.id, [first.seats[0]!.id]).expect(201);
+  });
+
   it("lets another holder take a seat whose lock expired", async () => {
     const { showtime, seats } = await createFixture();
     const first = await createUser();

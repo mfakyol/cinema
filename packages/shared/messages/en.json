@@ -9,7 +9,8 @@
     "register": "Create account",
     "myTickets": "My tickets",
     "back": "Back",
-    "minutes": "{count} min"
+    "minutes": "{count} min",
+    "tmdbAttribution": "Movie data and posters from TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB."
   },
   "home": {
     "title": "Now showing",
@@ -28,7 +29,6 @@
     "free": "Available",
     "mine": "Your seats",
     "taken": "Taken",
-    "vip": "VIP",
     "seatLabel": "Row {row}, seat {number}",
     "selected": "{count, plural, =0 {No seats selected} one {# seat selected} other {# seats selected}}",
     "pickHint": "Tap a free seat to hold it. Tap it again to let it go.",
@@ -39,7 +39,8 @@
     "purchased": "Your tickets are confirmed.",
     "ticketCount": "{count, plural, one {# ticket} other {# tickets}}",
     "viewTickets": "View tickets",
-    "live": "Live"
+    "live": "Live",
+    "wheelchair": "Wheelchair space"
   },
   "auth": {
     "signInTitle": "Welcome back",
@@ -93,6 +94,12 @@
     "INVALID_QR": "This is not a valid ticket code.",
     "NOT_FOUND": "Ticket not found.",
     "FORBIDDEN": "Your account cannot do this.",
+    "WRONG_KIND_TICKET": "This is a ticket. Switch to Door mode to check it.",
+    "WRONG_KIND_CONCESSION": "This is a snack or drink code. Switch to Stand mode to hand it over.",
+    "ALREADY_COLLECTED": "This item has already been collected.",
+    "VOUCHER_CANCELLED": "This item was cancelled.",
+    "INVALID_PRODUCT": "Some items are no longer on sale.",
+    "GLASSES_NOT_3D": "3D glasses are only sold for 3D showings.",
     "generic": "Something went wrong. Please try again."
   },
   "order": {
@@ -116,7 +123,8 @@
     "greeting": "Thanks for your purchase!",
     "details": "{movie} · {showtime} · {hall}",
     "showTickets": "Show my tickets",
-    "linkHint": "Open this link at the entrance to show your QR codes. Anyone with the link can see the tickets, so keep it to yourself."
+    "linkHint": "Open this link at the entrance to show your QR codes. Anyone with the link can see the tickets, so keep it to yourself.",
+    "concessions": "Snacks, drinks and glasses"
   },
   "app": {
     "tabMovies": "Movies",
@@ -138,8 +146,70 @@
     "checking": "Checking…",
     "admitted": "Admitted",
     "rejected": "Not admitted",
-    "scanNext": "Scan next ticket",
+    "scanNext": "Scan next",
     "manualEntry": "Ticket code or link",
-    "check": "Check ticket"
+    "check": "Check ticket",
+    "modeDoor": "Door: tickets",
+    "modeStand": "Stand: snacks",
+    "standTitle": "Concession stand",
+    "handOver": "Hand over",
+    "collected": "Hand it over",
+    "notHandedOver": "Not handed over"
+  },
+  "steps": {
+    "seats": "Seats",
+    "extras": "Snacks",
+    "payment": "Payment",
+    "continue": "Continue",
+    "skip": "Skip"
+  },
+  "extras": {
+    "title": "Snacks and drinks",
+    "subtitle": "Add something for the film, or skip this step.",
+    "glassesTitle": "3D glasses",
+    "glassesHint": "This is a 3D showing. Bring your own glasses or get a pair here.",
+    "onePerSeat": "One pair per seat ({count})",
+    "categories": {
+      "COMBO": "Combos",
+      "SNACK": "Snacks",
+      "DRINK": "Drinks",
+      "GLASSES": "3D glasses"
+    },
+    "add": "Add {name}",
+    "remove": "Remove one {name}",
+    "inCart": "{count} in cart",
+    "itemsTotal": "Snacks total"
+  },
+  "checkout": {
+    "title": "Review and pay",
+    "tickets": "Tickets",
+    "items": "Snacks and drinks",
+    "lineQuantity": "{count} × {price}",
+    "sendTo": "Tickets and item codes go to {email}.",
+    "holdLost": "Your seat hold ran out. Pick your seats again.",
+    "backToSeats": "Back to seats"
+  },
+  "concessions": {
+    "notFound": "This item could not be found. Check the link.",
+    "title": "Snacks and drinks",
+    "itemTitle": "Your item",
+    "showAtStand": "Show this code at the concession stand.",
+    "status": {
+      "PAID": "Ready to collect",
+      "USED": "Collected",
+      "CANCELLED": "Cancelled"
+    },
+    "shareItem": "Share item",
+    "shareItemText": "{item} for {movie}. Show the QR code at the concession stand."
+  },
+  "format": {
+    "TWO_D": "2D",
+    "THREE_D": "3D",
+    "IMAX": "IMAX",
+    "IMAX_3D": "IMAX 3D"
+  },
+  "discounts": {
+    "PEOPLES_DAY": "People's day −{percent}%",
+    "DAYTIME": "Daytime −{percent}%"
   }
 }

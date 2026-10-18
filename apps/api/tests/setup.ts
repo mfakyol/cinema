@@ -3,7 +3,7 @@ import { prisma } from "../src/db.js";
 
 beforeEach(async () => {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE "Ticket", "Order", "SeatLock", "Showtime", "Seat", "Hall", "Movie", "User" CASCADE',
+    'TRUNCATE "ConcessionVoucher", "OrderItem", "Product", "Ticket", "Order", "SeatLock", "Showtime", "Seat", "Hall", "HallLayout", "Movie", "User" CASCADE',
   );
 });
 

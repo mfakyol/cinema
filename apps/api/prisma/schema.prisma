@@ -15,7 +15,8 @@ enum Role {
 
 enum SeatType {
   STANDARD
-  VIP
+  /// A space for a wheelchair, sold like a seat.
+  WHEELCHAIR
 }
 
 enum OrderStatus {
@@ -28,6 +29,21 @@ enum TicketStatus {
   PAID
   USED
   CANCELLED
+}
+
+enum ProductCategory {
+  COMBO
+  SNACK
+  DRINK
+  /// 3D glasses; only sold for 3D showtimes.
+  GLASSES
+}
+
+enum ShowFormat {
+  TWO_D
+  THREE_D
+  IMAX
+  IMAX_3D
 }
 
 enum SalesChannel {
@@ -61,9 +77,14 @@ model Movie {
 }
 
 model Hall {
-  id   String @id @default(uuid())
-  name String @unique
+  id       String       @id @default(uuid())
+  name     String       @unique
+  /// The seating plan the hall's seats were built from.
+  layoutId String?
+  /// What the hall's projector and screen can show; a showtime's format must be one of these.
+  formats  ShowFormat[] @default([TWO_D])
 
+  layout    HallLayout? @relation(fields: [layoutId], references: [id])
   seats     Seat[]
   showtimes Showtime[]
 }
@@ -73,6 +94,8 @@ model Seat {
   hallId String
   row    String
   number Int
+  /// Position in the row counting aisles, from the hall layout, so maps can draw the gaps.
+  column Int      @default(0)
   type   SeatType @default(STANDARD)
 
   hall    Hall       @relation(fields: [hallId], references: [id], onDelete: Cascade)
@@ -83,12 +106,13 @@ model Seat {
 }
 
 model Showtime {
-  id       String   @id @default(uuid())
+  id       String     @id @default(uuid())
   movieId  String
   hallId   String
   startsAt DateTime
   /// Price in cents to avoid floating point money.
   price    Int
+  format   ShowFormat @default(TWO_D)
 
   movie   Movie      @relation(fields: [movieId], references: [id])
   hall    Hall       @relation(fields: [hallId], references: [id])
@@ -133,8 +157,9 @@ model Order {
   accessToken    String      @unique
   createdAt      DateTime    @default(now())
 
-  user    User?    @relation(fields: [userId], references: [id])
+  user    User?       @relation(fields: [userId], references: [id])
   tickets Ticket[]
+  items   OrderItem[]
 }
 
 /// Unique (showtimeId, seatId) among non-cancelled tickets is a partial index
@@ -157,4 +182,62 @@ model Ticket {
 
   @@index([showtimeId])
   @@index([userId])
+}
+
+/// Something sold at the concession stand: a snack, a drink, or a combo of them.
+model Product {
+  id          String          @id @default(uuid())
+  /// Display name by language, e.g. {"en": "Large popcorn", "tr": "..."}.
+  name        Json
+  /// What a combo contains, by language.
+  description Json?
+  category    ProductCategory
+  /// Price in cents.
+  price       Int
+  sortOrder   Int             @default(0)
+  active      Boolean         @default(true)
+
+  orderItems OrderItem[]
+}
+
+/// One product line in an order, with the price it was sold at.
+model OrderItem {
+  id        String @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int
+  /// Price in cents at the time of sale.
+  unitPrice Int
+
+  order    Order               @relation(fields: [orderId], references: [id])
+  product  Product             @relation(fields: [productId], references: [id])
+  vouchers ConcessionVoucher[]
+
+  @@index([orderId])
+}
+
+/// One unit of a product to collect at the stand, with its own QR code, so items can be
+/// collected separately or handed to friends. USED means collected.
+model ConcessionVoucher {
+  id          String       @id @default(uuid())
+  orderItemId String
+  qrToken     String       @unique
+  status      TicketStatus @default(PAID)
+  usedAt      DateTime?
+  createdAt   DateTime     @default(now())
+
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id])
+
+  @@index([orderItemId])
+}
+
+/**
+ * A reusable seating plan. `rows` is a JSON list of { label, cells } from the screen
+ * backwards, where cells use S (standard), W (wheelchair) and _ (aisle).
+ */
+model HallLayout {
+  id    String @id @default(uuid())
+  name  String @unique
+  rows  Json
+  halls Hall[]
 }

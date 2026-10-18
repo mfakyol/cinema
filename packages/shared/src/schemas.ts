@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MAX_LOCKS_PER_HOLDER } from "./constants.js";
+import { MAX_ITEM_QUANTITY, MAX_LOCKS_PER_HOLDER } from "./constants.js";
 import { LOCALES } from "./i18n.js";
 
 export const registerSchema = z.object({
@@ -36,13 +36,18 @@ export const checkoutSchema = z.object({
   email: z.email().toLowerCase(),
   /** Language of the confirmation email. */
   locale: z.enum(LOCALES).default("en"),
+  /** Snacks, drinks and 3D glasses bought with the tickets; each unit gets its own QR code. */
+  items: z
+    .array(z.object({ productId: z.uuid(), quantity: z.number().int().min(1).max(MAX_ITEM_QUANTITY) }))
+    .max(20)
+    .default([]),
   /** Lets demos and tests trigger a declined payment with the fake provider. */
   simulate: z.enum(["success", "decline"]).default("success"),
 });
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 
-export const verifyTicketSchema = z.object({
-  /** What the scanner read: the ticket link from the QR code, or a bare ticket code. */
+/** What a scanner read: the link from a QR code, or a bare code. */
+export const scanSchema = z.object({
   qrToken: z.string().min(1).max(500),
 });
-export type VerifyTicketInput = z.infer<typeof verifyTicketSchema>;
+export type ScanInput = z.infer<typeof scanSchema>;

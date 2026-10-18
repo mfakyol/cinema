@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { type CheckoutInput, SocketEvent } from "@sinema/shared";
+import { type CheckoutInput, needsGlasses, seatPricing, type ShowFormat, SocketEvent } from "@sinema/shared";
 import { isUniqueViolation, prisma } from "../db.js";
 import { HttpError } from "../lib/http-error.js";
 import type { AuthClaims } from "../lib/jwt.js";
@@ -11,7 +11,44 @@ import { emitToShowtime } from "../realtime.js";
 
 const orderWithTickets = {
   tickets: { select: { id: true, seatId: true, qrToken: true, status: true, channel: true } },
+  items: {
+    select: {
+      id: true,
+      productId: true,
+      quantity: true,
+      unitPrice: true,
+      product: { select: { name: true, category: true } },
+      vouchers: { select: { id: true, qrToken: true, status: true }, orderBy: { createdAt: "asc" } },
+    },
+  },
 } as const;
+
+/**
+ * Checks the requested snacks, drinks and glasses against the catalogue and prices them.
+ * The same product listed twice is merged; 3D glasses are only sold for 3D and IMAX 3D showtimes.
+ */
+async function priceItems(items: CheckoutInput["items"], format: ShowFormat) {
+  const quantities = new Map<string, number>();
+  for (const { productId, quantity } of items) {
+    quantities.set(productId, (quantities.get(productId) ?? 0) + quantity);
+  }
+  if (quantities.size === 0) return [];
+
+  const products = await prisma.product.findMany({
+    where: { id: { in: [...quantities.keys()] }, active: true },
+  });
+  if (products.length !== quantities.size) {
+    throw new HttpError(400, "INVALID_PRODUCT", "Some products are not on sale");
+  }
+  if (!needsGlasses(format) && products.some((product) => product.category === "GLASSES")) {
+    throw new HttpError(400, "GLASSES_NOT_3D", "3D glasses are only sold for 3D showtimes");
+  }
+  return products.map((product) => ({
+    productId: product.id,
+    quantity: quantities.get(product.id)!,
+    unitPrice: product.price,
+  }));
+}
 
 async function loadOrder(id: string) {
   return prisma.order.findUniqueOrThrow({ where: { id }, include: orderWithTickets });
@@ -43,16 +80,21 @@ export async function checkout(auth: AuthClaims, input: CheckoutInput) {
   const now = new Date();
   const locks = await prisma.seatLock.findMany({
     where: { holderId: auth.sub, showtimeId: input.showtimeId, expiresAt: { gt: now } },
-    include: { showtime: { select: { price: true } } },
+    include: { showtime: { select: { price: true, startsAt: true, format: true } } },
   });
   if (locks.length === 0) {
     throw new HttpError(400, "NO_LOCKS", "Lock seats for this showtime before checking out");
   }
+  const lines = await priceItems(input.items, locks[0]!.showtime.format);
 
   const isGuest = auth.role === "GUEST";
   const userId = isGuest ? null : auth.sub;
   const channel = isGuest ? (auth.channel ?? "KIOSK") : input.channel;
-  const amount = locks[0]!.showtime.price * locks.length;
+  // Discounts follow from the showtime itself (Wednesday, weekday daytime), never from the client.
+  const seatPrice = seatPricing(locks[0]!.showtime).price;
+  const amount =
+    seatPrice * locks.length +
+    lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
 
   let order;
   try {
@@ -65,7 +107,9 @@ export async function checkout(auth: AuthClaims, input: CheckoutInput) {
         idempotencyKey: input.idempotencyKey,
         contactEmail: input.email,
         accessToken: randomBytes(24).toString("base64url"),
+        items: { create: lines },
       },
+      include: { items: true },
     });
   } catch (error) {
     // A concurrent retry with the same key got here first.
@@ -104,6 +148,12 @@ export async function checkout(auth: AuthClaims, input: CheckoutInput) {
           channel,
           qrToken: createQrToken(),
         })),
+      });
+      // One voucher per unit, so each popcorn or pair of glasses has its own QR code.
+      await tx.concessionVoucher.createMany({
+        data: order.items.flatMap((item) =>
+          Array.from({ length: item.quantity }, () => ({ orderItemId: item.id, qrToken: createQrToken() })),
+        ),
       });
       await tx.order.update({
         where: { id: order.id },

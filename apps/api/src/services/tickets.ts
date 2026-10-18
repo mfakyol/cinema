@@ -1,4 +1,4 @@
-import { qrTokenFromScan } from "@sinema/shared";
+import { parseScan } from "@sinema/shared";
 import { prisma } from "../db.js";
 import { HttpError } from "../lib/http-error.js";
 import { hasValidSignature } from "../lib/qr.js";
@@ -37,8 +37,12 @@ export async function getTicketByQrToken(qrToken: string) {
 
 /** Admits a ticket once: PAID becomes USED atomically, so two scanners cannot both admit it. */
 export async function verifyTicket(scanned: string) {
-  // Scanners read the ticket link printed in the QR code; the code is its last segment.
-  const qrToken = qrTokenFromScan(scanned);
+  // Scanners read the link printed in the QR code. A concession code at the door is turned
+  // away untouched, so it still works at the stand.
+  const { kind, qrToken } = parseScan(scanned);
+  if (kind === "concession") {
+    throw new HttpError(400, "WRONG_KIND_CONCESSION", "This is a concession code, not a ticket");
+  }
   if (!hasValidSignature(qrToken)) {
     throw new HttpError(400, "INVALID_QR", "This is not a valid ticket code");
   }

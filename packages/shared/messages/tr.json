@@ -9,7 +9,8 @@
     "register": "Hesap oluştur",
     "myTickets": "Biletlerim",
     "back": "Geri",
-    "minutes": "{count} dk"
+    "minutes": "{count} dk",
+    "tmdbAttribution": "Film bilgileri ve afişler TMDB'den alınmıştır. Bu ürün TMDB API'sini kullanır ancak TMDB tarafından onaylanmamış veya sertifikalandırılmamıştır."
   },
   "home": {
     "title": "Vizyondakiler",
@@ -28,7 +29,6 @@
     "free": "Boş",
     "mine": "Senin koltukların",
     "taken": "Dolu",
-    "vip": "VIP",
     "seatLabel": "{row} sırası, {number} numara",
     "selected": "{count, plural, =0 {Koltuk seçilmedi} other {# koltuk seçildi}}",
     "pickHint": "Ayırmak için boş bir koltuğa dokun. Bırakmak için tekrar dokun.",
@@ -39,7 +39,8 @@
     "purchased": "Biletlerin onaylandı.",
     "ticketCount": "{count, plural, other {# bilet}}",
     "viewTickets": "Biletleri gör",
-    "live": "Canlı"
+    "live": "Canlı",
+    "wheelchair": "Tekerlekli sandalye alanı"
   },
   "auth": {
     "signInTitle": "Tekrar hoş geldin",
@@ -93,6 +94,12 @@
     "INVALID_QR": "Bu geçerli bir bilet kodu değil.",
     "NOT_FOUND": "Bilet bulunamadı.",
     "FORBIDDEN": "Hesabın bu işlemi yapamaz.",
+    "WRONG_KIND_TICKET": "Bu bir bilet. Kontrol etmek için Kapı moduna geç.",
+    "WRONG_KIND_CONCESSION": "Bu bir yiyecek/içecek kodu. Teslim etmek için Büfe moduna geç.",
+    "ALREADY_COLLECTED": "Bu ürün zaten teslim edilmiş.",
+    "VOUCHER_CANCELLED": "Bu ürün iptal edilmiş.",
+    "INVALID_PRODUCT": "Bazı ürünler artık satışta değil.",
+    "GLASSES_NOT_3D": "3D gözlük sadece 3D gösterimler için satılır.",
     "generic": "Bir sorun oluştu. Lütfen tekrar dene."
   },
   "order": {
@@ -116,7 +123,8 @@
     "greeting": "Satın aldığın için teşekkürler!",
     "details": "{movie} · {showtime} · {hall}",
     "showTickets": "Biletlerimi göster",
-    "linkHint": "QR kodlarını göstermek için bu bağlantıyı girişte aç. Bağlantıya sahip olan herkes biletleri görebilir, kimseyle paylaşma."
+    "linkHint": "QR kodlarını göstermek için bu bağlantıyı girişte aç. Bağlantıya sahip olan herkes biletleri görebilir, kimseyle paylaşma.",
+    "concessions": "Yiyecek, içecek ve gözlükler"
   },
   "app": {
     "tabMovies": "Filmler",
@@ -138,8 +146,70 @@
     "checking": "Kontrol ediliyor…",
     "admitted": "Giriş onaylandı",
     "rejected": "Giriş reddedildi",
-    "scanNext": "Sıradaki bileti okut",
+    "scanNext": "Sıradakini okut",
     "manualEntry": "Bilet kodu veya bağlantısı",
-    "check": "Bileti kontrol et"
+    "check": "Bileti kontrol et",
+    "modeDoor": "Kapı: bilet",
+    "modeStand": "Büfe: ürün",
+    "standTitle": "Büfe",
+    "handOver": "Teslim et",
+    "collected": "Ürünü teslim et",
+    "notHandedOver": "Teslim edilmedi"
+  },
+  "steps": {
+    "seats": "Koltuk",
+    "extras": "Yiyecek",
+    "payment": "Ödeme",
+    "continue": "Devam",
+    "skip": "Atla"
+  },
+  "extras": {
+    "title": "Yiyecek ve içecek",
+    "subtitle": "Film için bir şeyler ekle ya da bu adımı atla.",
+    "glassesTitle": "3D gözlük",
+    "glassesHint": "Bu bir 3D gösterim. Kendi gözlüğünü getirebilir ya da buradan alabilirsin.",
+    "onePerSeat": "Her koltuğa bir gözlük ({count})",
+    "categories": {
+      "COMBO": "Menüler",
+      "SNACK": "Atıştırmalıklar",
+      "DRINK": "İçecekler",
+      "GLASSES": "3D gözlük"
+    },
+    "add": "{name} ekle",
+    "remove": "Bir {name} çıkar",
+    "inCart": "Sepette {count}",
+    "itemsTotal": "Yiyecek toplamı"
+  },
+  "checkout": {
+    "title": "Kontrol et ve öde",
+    "tickets": "Biletler",
+    "items": "Yiyecek ve içecekler",
+    "lineQuantity": "{count} × {price}",
+    "sendTo": "Biletler ve ürün kodları {email} adresine gönderilecek.",
+    "holdLost": "Koltuk ayırma süren doldu. Koltuklarını yeniden seç.",
+    "backToSeats": "Koltuklara dön"
+  },
+  "concessions": {
+    "notFound": "Bu ürün bulunamadı. Bağlantıyı kontrol et.",
+    "title": "Yiyecek ve içecekler",
+    "itemTitle": "Ürünün",
+    "showAtStand": "Bu kodu büfede göster.",
+    "status": {
+      "PAID": "Teslim alınabilir",
+      "USED": "Teslim alındı",
+      "CANCELLED": "İptal edildi"
+    },
+    "shareItem": "Ürünü paylaş",
+    "shareItemText": "{movie} için {item}. QR kodu büfede göster."
+  },
+  "format": {
+    "TWO_D": "2D",
+    "THREE_D": "3D",
+    "IMAX": "IMAX",
+    "IMAX_3D": "IMAX 3D"
+  },
+  "discounts": {
+    "PEOPLES_DAY": "Halk Günü %{percent} indirim",
+    "DAYTIME": "Gündüz %{percent} indirim"
   }
 }

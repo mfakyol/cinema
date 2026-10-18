@@ -1,11 +1,12 @@
 import { Router } from "express";
 import QRCode from "qrcode";
-import { ticketUrl, verifyTicketSchema } from "@sinema/shared";
+import { scanSchema, ticketUrl } from "@sinema/shared";
 import { env } from "../env.js";
 import { HttpError } from "../lib/http-error.js";
 import { hasValidSignature } from "../lib/qr.js";
 import { validate } from "../lib/validate.js";
 import { caller, requireAuth } from "../middleware/auth.js";
+import { listHolderVouchers } from "../services/concessions.js";
 import { getTicketByQrToken, listHolderTickets, verifyTicket } from "../services/tickets.js";
 
 export const meRouter = Router();
@@ -14,10 +15,14 @@ meRouter.get("/tickets", requireAuth(), async (req, res) => {
   res.json({ tickets: await listHolderTickets(caller(req).sub) });
 });
 
+meRouter.get("/concessions", requireAuth(), async (req, res) => {
+  res.json({ vouchers: await listHolderVouchers(caller(req).sub) });
+});
+
 export const ticketsRouter = Router();
 
 ticketsRouter.post("/verify", requireAuth("STAFF", "ADMIN"), async (req, res) => {
-  const { qrToken } = validate(verifyTicketSchema, req.body);
+  const { qrToken } = validate(scanSchema, req.body);
   res.json({ ticket: await verifyTicket(qrToken) });
 });
 

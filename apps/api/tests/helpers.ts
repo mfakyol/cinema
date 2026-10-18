@@ -11,9 +11,19 @@ export const api = () => request(app);
 
 export const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+/**
+ * Next Saturday at 20:00 cinema time (17:00 UTC), at least a day away: no automatic discount
+ * applies on a Saturday evening, so prices in tests do not depend on the day they run.
+ */
+export function nextSaturdayEvening(): Date {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + 2);
+  while (date.getUTCDay() !== 6) date.setUTCDate(date.getUTCDate() + 1);
+  date.setUTCHours(17, 0, 0, 0);
+  return date;
+}
 
-/** A movie, a 2x6 hall and one showtime tomorrow at 10.00 a seat. */
+/** A movie, a 2x6 hall and one showtime next Saturday evening at 10.00 a seat. */
 export async function createFixture() {
   const movie = await prisma.movie.create({
     data: { title: "Test Movie", description: "A movie for tests.", durationMin: 100, genre: "Drama" },
@@ -23,7 +33,7 @@ export async function createFixture() {
       name: `Hall ${randomUUID()}`,
       seats: {
         create: ["A", "B"].flatMap((row) =>
-          Array.from({ length: 6 }, (_, i) => ({ row, number: i + 1 })),
+          Array.from({ length: 6 }, (_, i) => ({ row, number: i + 1, column: i })),
         ),
       },
     },
@@ -33,7 +43,7 @@ export async function createFixture() {
     data: {
       movieId: movie.id,
       hallId: hall.id,
-      startsAt: new Date(Date.now() + DAY_MS),
+      startsAt: nextSaturdayEvening(),
       price: 1000,
     },
   });

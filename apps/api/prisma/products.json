@@ -1,0 +1,50 @@
+[
+  {
+    "category": "GLASSES",
+    "price": 4000,
+    "name": { "en": "3D glasses", "tr": "3D gözlük" },
+    "description": { "en": "Yours to keep; bring them to your next 3D showing.", "tr": "Senin olur; sonraki 3D gösterimde de kullanabilirsin." }
+  },
+  {
+    "category": "COMBO",
+    "price": 32000,
+    "name": { "en": "Movie night combo", "tr": "Film gecesi menüsü" },
+    "description": { "en": "Large popcorn and two soft drinks", "tr": "Büyük mısır ve iki meşrubat" }
+  },
+  {
+    "category": "COMBO",
+    "price": 22000,
+    "name": { "en": "Solo combo", "tr": "Tek kişilik menü" },
+    "description": { "en": "Medium popcorn and a soft drink", "tr": "Orta mısır ve bir meşrubat" }
+  },
+  {
+    "category": "SNACK",
+    "price": 9000,
+    "name": { "en": "Popcorn, small", "tr": "Mısır, küçük" }
+  },
+  {
+    "category": "SNACK",
+    "price": 12000,
+    "name": { "en": "Popcorn, medium", "tr": "Mısır, orta" }
+  },
+  {
+    "category": "SNACK",
+    "price": 15000,
+    "name": { "en": "Popcorn, large", "tr": "Mısır, büyük" }
+  },
+  {
+    "category": "SNACK",
+    "price": 13000,
+    "name": { "en": "Nachos with cheese sauce", "tr": "Peynir soslu nachos" }
+  },
+  {
+    "category": "DRINK",
+    "price": 7000,
+    "name": { "en": "Soft drink", "tr": "Meşrubat" }
+  },
+  {
+    "category": "DRINK",
+    "price": 3000,
+    "name": { "en": "Water", "tr": "Su" }
+  }
+]

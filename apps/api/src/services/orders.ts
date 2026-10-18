@@ -1,5 +1,6 @@
 import { prisma } from "../db.js";
 import { HttpError } from "../lib/http-error.js";
+import { listOrderVouchers } from "./concessions.js";
 
 /** Hides most of the address on the public order page: "ja***@example.com". */
 function maskEmail(email: string): string {
@@ -38,5 +39,6 @@ export async function getOrderByAccessToken(accessToken: string) {
     createdAt: order.createdAt,
     email: maskEmail(order.contactEmail),
     tickets: order.tickets,
+    vouchers: await listOrderVouchers(order.id),
   };
 }

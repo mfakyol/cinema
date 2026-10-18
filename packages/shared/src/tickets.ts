@@ -1,19 +1,36 @@
 /**
- * A ticket's QR code holds a link to its page, so any phone camera opens the ticket.
- * Gate scanners read the same link and take the ticket code out of it.
+ * Every QR code holds a link to its own page, so any phone camera opens it. The path says
+ * what it is: /t/<code> for a ticket, /c/<code> for a concession item (snack, drink, 3D
+ * glasses). Scanners read the same link and take the kind and the code out of it.
  */
-export function ticketUrl(siteUrl: string, qrToken: string): string {
-  return `${siteUrl.replace(/\/+$/, "")}/t/${encodeURIComponent(qrToken)}`;
+export type QrKind = "ticket" | "concession";
+
+const PATHS: Record<QrKind, string> = { ticket: "t", concession: "c" };
+
+function qrUrl(siteUrl: string, kind: QrKind, qrToken: string): string {
+  return `${siteUrl.replace(/\/+$/, "")}/${PATHS[kind]}/${encodeURIComponent(qrToken)}`;
 }
 
-/** The ticket code inside whatever a scanner read: a ticket link, or a bare code. */
-export function qrTokenFromScan(scanned: string): string {
+export const ticketUrl = (siteUrl: string, qrToken: string) => qrUrl(siteUrl, "ticket", qrToken);
+
+export const concessionUrl = (siteUrl: string, qrToken: string) => qrUrl(siteUrl, "concession", qrToken);
+
+export interface ScannedCode {
+  /** Null for a bare code, whose kind only the endpoint it is sent to can tell. */
+  kind: QrKind | null;
+  qrToken: string;
+}
+
+/** What a scanner read: a ticket or concession link, or a bare code. */
+export function parseScan(scanned: string): ScannedCode {
   const text = scanned.trim();
   try {
-    const match = new URL(text).pathname.match(/\/t\/([^/]+)\/?$/);
-    if (match?.[1]) return decodeURIComponent(match[1]);
+    const match = new URL(text).pathname.match(/\/(t|c)\/([^/]+)\/?$/);
+    if (match?.[1] && match[2]) {
+      return { kind: match[1] === "t" ? "ticket" : "concession", qrToken: decodeURIComponent(match[2]) };
+    }
   } catch {
-    // Not a URL: treat it as a bare code.
+    // Not a URL: a bare code.
   }
-  return text;
+  return { kind: null, qrToken: text };
 }
