@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  CUSTOMER
+  STAFF
+  ADMIN
+}
+
+enum SeatType {
+  STANDARD
+  VIP
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum TicketStatus {
+  PAID
+  USED
+  CANCELLED
+}
+
+enum SalesChannel {
+  WEB
+  MOBILE
+  KIOSK
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(CUSTOMER)
+  createdAt    DateTime @default(now())
+
+  orders  Order[]
+  tickets Ticket[]
+}
+
+model Movie {
+  id          String  @id @default(uuid())
+  title       String
+  description String
+  durationMin Int
+  genre       String
+  posterUrl   String?
+  tmdbId      Int?    @unique
+
+  showtimes Showtime[]
+}
+
+model Hall {
+  id   String @id @default(uuid())
+  name String @unique
+
+  seats     Seat[]
+  showtimes Showtime[]
+}
+
+model Seat {
+  id     String   @id @default(uuid())
+  hallId String
+  row    String
+  number Int
+  type   SeatType @default(STANDARD)
+
+  hall    Hall       @relation(fields: [hallId], references: [id], onDelete: Cascade)
+  locks   SeatLock[]
+  tickets Ticket[]
+
+  @@unique([hallId, row, number])
+}
+
+model Showtime {
+  id       String   @id @default(uuid())
+  movieId  String
+  hallId   String
+  startsAt DateTime
+  /// Price in cents to avoid floating point money.
+  price    Int
+
+  movie   Movie      @relation(fields: [movieId], references: [id])
+  hall    Hall       @relation(fields: [hallId], references: [id])
+  locks   SeatLock[]
+  tickets Ticket[]
+
+  @@index([hallId, startsAt])
+}
+
+/// A temporary hold on a seat while the holder pays. Rows past expiresAt are stale.
+model SeatLock {
+  id         String   @id @default(uuid())
+  showtimeId String
+  seatId     String
+  /// User id, or a kiosk session id for guest purchases.
+  holderId   String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  showtime Showtime @relation(fields: [showtimeId], references: [id], onDelete: Cascade)
+  seat     Seat     @relation(fields: [seatId], references: [id])
+
+  @@unique([showtimeId, seatId])
+  @@index([holderId])
+  @@index([expiresAt])
+}
+
+/// One payment; groups the tickets bought together.
+model Order {
+  id             String      @id @default(uuid())
+  holderId       String
+  userId         String?
+  /// Total in cents.
+  amount         Int
+  status         OrderStatus @default(PENDING)
+  provider       String
+  providerRef    String?
+  idempotencyKey String      @unique
+  createdAt      DateTime    @default(now())
+
+  user    User?    @relation(fields: [userId], references: [id])
+  tickets Ticket[]
+}
+
+/// Unique (showtimeId, seatId) among non-cancelled tickets is a partial index
+/// added by hand in the init migration, since Prisma cannot express it.
+model Ticket {
+  id         String       @id @default(uuid())
+  orderId    String
+  showtimeId String
+  seatId     String
+  userId     String?
+  status     TicketStatus @default(PAID)
+  qrToken    String       @unique
+  channel    SalesChannel
+  createdAt  DateTime     @default(now())
+
+  order    Order    @relation(fields: [orderId], references: [id])
+  showtime Showtime @relation(fields: [showtimeId], references: [id])
+  seat     Seat     @relation(fields: [seatId], references: [id])
+  user     User?    @relation(fields: [userId], references: [id])
+
+  @@index([showtimeId])
+  @@index([userId])
+}
