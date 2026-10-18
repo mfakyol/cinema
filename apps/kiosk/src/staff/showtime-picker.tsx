@@ -2,7 +2,6 @@ import { groupBy, type ScheduledShowtime } from "@sinema/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useFormatter, useNow, useTranslations } from "use-intl";
-import { FormatBadge } from "@/components/format-badge";
 import { MoviePoster } from "@/components/movie-poster";
 import { SegmentedControl } from "@/components/segmented-control";
 import { Button } from "@/components/ui/button";
@@ -100,7 +99,7 @@ export function ShowtimePicker({ onPick }: { onPick: (showtimeId: string) => voi
               </span>
               <span className="block text-2xl font-bold">{dayStart(offset).getDate()}</span>
               <span className={cn("block text-xs", selected ? "text-primary-foreground/80" : "text-muted-foreground")}>
-                {count}
+                {t("kiosk.showings", { count })}
               </span>
             </button>
           );
@@ -122,82 +121,90 @@ export function ShowtimePicker({ onPick }: { onPick: (showtimeId: string) => voi
   );
 }
 
-/** Price (green when discounted) and seats left (red when few), shared by both views. */
-function PriceAndSeats({ showtime }: { showtime: ScheduledShowtime }) {
+/**
+ * One showing as a compact chip, the same in both views: time and format, the movie in the
+ * by-time view, then seats left (red when few) and price (green when discounted). Showings
+ * starting within the hour say how soon, in amber.
+ */
+function ShowtimeChip({
+  showtime,
+  now,
+  withTitle = false,
+  onPick,
+}: {
+  showtime: ScheduledShowtime;
+  now: Date;
+  withTitle?: boolean;
+  onPick: (id: string) => void;
+}) {
   const t = useTranslations();
+  const format = useFormatter();
   const price = usePrice();
+  const minutes = Math.ceil((new Date(showtime.startsAt).getTime() - now.getTime()) / 60_000);
+  const soon = minutes >= 0 && minutes <= SOON_MINUTES;
+
   return (
-    <span className="flex items-center justify-between gap-2 text-xs">
-      <span className={cn("font-medium", showtime.discount && "text-green-600 dark:text-green-400")}>
-        {price(showtime.price)}
+    <button
+      type="button"
+      disabled={showtime.seatsLeft <= 0}
+      onClick={() => onPick(showtime.id)}
+      className={cn(
+        "rounded-lg border bg-background px-2.5 py-1.5 text-left transition-colors hover:border-primary hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40",
+        withTitle ? "w-48" : "w-32",
+      )}
+    >
+      <span className="flex items-center justify-between gap-1">
+        <span className="text-lg font-bold tabular-nums">
+          {format.dateTime(new Date(showtime.startsAt), { hour: "2-digit", minute: "2-digit" })}
+        </span>
+        <span className="text-xs font-semibold text-muted-foreground">{t(`format.${showtime.format}`)}</span>
       </span>
-      <span
-        className={cn("text-muted-foreground", showtime.seatsLeft <= FEW_SEATS && "font-semibold text-destructive")}
-      >
-        {t("kiosk.seatsLeft", { count: Math.max(showtime.seatsLeft, 0) })}
+      {withTitle && <span className="block truncate text-sm font-medium">{showtime.movie.title}</span>}
+      {soon && (
+        <span className="block text-xs font-semibold text-amber-600 dark:text-amber-400">
+          {t("kiosk.startsIn", { count: minutes })}
+        </span>
+      )}
+      <span className="flex items-center justify-between gap-1 text-xs">
+        <span
+          className={cn(
+            "whitespace-nowrap text-muted-foreground",
+            showtime.seatsLeft <= FEW_SEATS && "font-semibold text-destructive",
+          )}
+        >
+          {t("kiosk.seatsFree", { count: Math.max(showtime.seatsLeft, 0) })}
+        </span>
+        <span className={cn("whitespace-nowrap tabular-nums", showtime.discount && "text-green-600 dark:text-green-400")}>
+          {price(showtime.price)}
+        </span>
       </span>
-    </span>
+    </button>
   );
 }
 
 /**
- * Every showing of the day in start order, under a heading per hour, for customers who ask
- * what is on next. Today it starts from now, and showings starting within the hour say how
- * soon.
+ * Every showing of the day in start order, a row of chips per hour, for customers who ask what
+ * is on next. Today it starts from now.
  */
 function ByTime({ showtimes, onPick }: { showtimes: ScheduledShowtime[]; onPick: (id: string) => void }) {
-  const t = useTranslations();
-  const format = useFormatter();
   const now = useNow({ updateInterval: 30_000 });
   const hours = groupBy(showtimes, (showtime) => new Date(showtime.startsAt).getHours());
 
   return (
-    <div className="space-y-6">
+    <ul className="space-y-3">
       {[...hours].map(([hour, list]) => (
-        <section key={hour} className="space-y-3">
-          <h3 className="text-lg font-semibold text-muted-foreground">{`${String(hour).padStart(2, "0")}:00`}</h3>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <li key={hour} className="flex gap-4 rounded-xl border bg-card p-3">
+          <h3 className="w-16 shrink-0 pt-1.5 text-lg font-semibold tabular-nums text-muted-foreground">
+            {`${String(hour).padStart(2, "0")}:00`}
+          </h3>
+          <div className="flex flex-wrap gap-2">
             {list.map((showtime) => (
-              <button
-                key={showtime.id}
-                type="button"
-                disabled={showtime.seatsLeft <= 0}
-                onClick={() => onPick(showtime.id)}
-                className="flex items-center gap-3 rounded-xl border bg-card p-3 text-left transition-colors hover:border-primary hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40"
-              >
-                <MoviePoster movie={showtime.movie} className="w-12 shrink-0 rounded-md p-1 text-[8px]" />
-                <span className="min-w-0 flex-1 space-y-1">
-                  <span className="flex items-center gap-2">
-                    <span className="text-xl font-bold text-primary">
-                      {format.dateTime(new Date(showtime.startsAt), { hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                    <FormatBadge format={showtime.format} />
-                    <StartsIn startsAt={showtime.startsAt} now={now} />
-                    <span className="ml-auto text-xs text-muted-foreground">{showtime.hall.name}</span>
-                  </span>
-                  <span className="block truncate font-semibold">{showtime.movie.title}</span>
-                  <span className="block text-xs text-muted-foreground">
-                    {t("common.minutes", { count: showtime.movie.durationMin })}
-                  </span>
-                  <PriceAndSeats showtime={showtime} />
-                </span>
-              </button>
+              <ShowtimeChip key={showtime.id} showtime={showtime} now={now} withTitle onPick={onPick} />
             ))}
           </div>
-        </section>
+        </li>
       ))}
-    </div>
-  );
-}
-
-function StartsIn({ startsAt, now }: { startsAt: string; now: Date }) {
-  const t = useTranslations();
-  const minutes = Math.ceil((new Date(startsAt).getTime() - now.getTime()) / 60_000);
-  if (minutes < 0 || minutes > SOON_MINUTES) return null;
-  return (
-    <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
-      {t("kiosk.startsIn", { count: minutes })}
-    </span>
+    </ul>
   );
 }
 
@@ -207,8 +214,7 @@ function StartsIn({ startsAt, now }: { startsAt: string; now: Date }) {
  */
 function MovieRow({ showtimes, onPick }: { showtimes: ScheduledShowtime[]; onPick: (id: string) => void }) {
   const t = useTranslations();
-  const format = useFormatter();
-  const price = usePrice();
+  const now = useNow({ updateInterval: 30_000 });
   const { movie } = showtimes[0]!;
 
   return (
@@ -224,35 +230,7 @@ function MovieRow({ showtimes, onPick }: { showtimes: ScheduledShowtime[]; onPic
       </div>
       <div className="flex flex-wrap gap-2">
         {showtimes.map((showtime) => (
-          <button
-            key={showtime.id}
-            type="button"
-            disabled={showtime.seatsLeft <= 0}
-            onClick={() => onPick(showtime.id)}
-            className="w-32 rounded-lg border bg-background px-2.5 py-1.5 text-left transition-colors hover:border-primary hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40"
-          >
-            <span className="flex items-center justify-between gap-1">
-              <span className="text-lg font-bold tabular-nums">
-                {format.dateTime(new Date(showtime.startsAt), { hour: "2-digit", minute: "2-digit" })}
-              </span>
-              <span className="text-xs font-semibold text-primary">{t(`format.${showtime.format}`)}</span>
-            </span>
-            <span className="flex items-center justify-between gap-1 text-xs">
-              <span
-                className={cn(
-                  "whitespace-nowrap text-muted-foreground",
-                  showtime.seatsLeft <= FEW_SEATS && "font-semibold text-destructive",
-                )}
-              >
-                {t("kiosk.seatsFree", { count: Math.max(showtime.seatsLeft, 0) })}
-              </span>
-              <span
-                className={cn("whitespace-nowrap tabular-nums", showtime.discount && "text-green-600 dark:text-green-400")}
-              >
-                {price(showtime.price)}
-              </span>
-            </span>
-          </button>
+          <ShowtimeChip key={showtime.id} showtime={showtime} now={now} onPick={onPick} />
         ))}
       </div>
     </li>
