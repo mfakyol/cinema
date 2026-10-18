@@ -22,7 +22,7 @@ export async function getOrderByAccessToken(accessToken: string) {
             select: {
               id: true,
               startsAt: true,
-              movie: { select: { id: true, title: true } },
+              movie: { select: { id: true, title: true, durationMin: true } },
               hall: { select: { id: true, name: true } },
             },
           },

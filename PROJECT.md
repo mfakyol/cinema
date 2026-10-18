@@ -97,6 +97,7 @@ Rules:
 - Lock duration: 7 minutes
 - A user or kiosk session can hold at most 10 seats at once
 - QR tokens must be unguessable (random, signed)
+- A QR code holds the ticket's link (`<WEB_URL>/t/<qrToken>`), so any phone camera opens the ticket; the gate scanner takes the code out of that link
 - The kiosk resets its session and releases its locks after 60 seconds without a touch
 
 ## API and Socket.io events
@@ -116,6 +117,7 @@ REST endpoints live under `/api`; real-time events go to per-showtime rooms.
 | POST | /checkout | Simulate payment, create tickets (idempotent per key) | Customer, guest |
 | GET | /me/tickets | Tickets bought by this user or guest session | Customer, guest |
 | GET | /orders/:accessToken | An order's tickets, for the emailed link | Link holder |
+| GET | /tickets/:qrToken | One ticket, for the link in its QR code | Code holder |
 | GET | /tickets/:qrToken/qr.png | A ticket's QR code as an image, for emails | Code holder |
 | POST | /tickets/verify | Check a QR code, mark the ticket used | Staff |
 | CRUD | /admin/movies, /admin/halls, /admin/showtimes | Administration | Admin |

@@ -62,7 +62,20 @@
       "USED": "Kullanıldı",
       "CANCELLED": "İptal edildi"
     },
-    "showAtEntrance": "Bu kodu girişte göster."
+    "showAtEntrance": "Bu kodu girişte göster.",
+    "notFound": "Bu bilet bağlantısı geçerli değil.",
+    "ticketTitle": "Biletin",
+    "details": {
+      "movie": "Film",
+      "date": "Tarih",
+      "time": "Saat",
+      "hall": "Salon",
+      "seat": "Koltuk",
+      "seatType": "Koltuk tipi",
+      "standard": "Standart",
+      "statusLabel": "Durum",
+      "duration": "Süre"
+    }
   },
   "errors": {
     "SEAT_TAKEN": "Bu koltuğu az önce başkası aldı.",
@@ -82,7 +95,16 @@
     "sentTo": "Biletler {email} adresine gönderildi.",
     "notFound": "Bu sipariş bağlantısı geçerli değil.",
     "email": "Biletlerin için e-posta",
-    "emailHint": "QR kodlarını ve onları gösteren bağlantıyı buraya göndeririz."
+    "emailHint": "QR kodlarını ve onları gösteren bağlantıyı buraya göndeririz.",
+    "downloadPdf": "PDF indir",
+    "saveImage": "Görsel olarak kaydet",
+    "addToCalendar": "Takvime ekle",
+    "share": "Paylaş",
+    "shareText": "{movie} biletlerim",
+    "linkCopied": "Bağlantı kopyalandı",
+    "calendarDescription": "Koltuklar: {seats}. QR kodlarını girişte göster: {link}",
+    "shareTicket": "Bileti paylaş",
+    "shareTicketText": "{movie} biletin ({seat}). QR kodu girişte göster."
   },
   "email": {
     "subject": "{movie} biletlerin",

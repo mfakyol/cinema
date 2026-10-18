@@ -22,7 +22,7 @@ pnpm dev:web
 
 The API serves `http://localhost:4000/api/health` and the website opens at `http://localhost:3000`.
 
-The website picks English or Turkish from the browser's language and light or dark from the operating system theme. Set `NEXT_PUBLIC_API_URL` in `apps/web/.env.local` when the API is not on `http://localhost:4000`.
+The website picks English or Turkish from the browser's language and light or dark from the operating system theme. Set `NEXT_PUBLIC_API_URL` in `apps/web/.env.local` when the API is not on `http://localhost:4000`, and `NEXT_PUBLIC_SITE_URL` to the website's public address so ticket QR codes link there; it must match the API's `WEB_URL`.
 
 ## Ticket emails
 

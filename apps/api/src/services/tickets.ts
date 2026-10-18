@@ -1,3 +1,4 @@
+import { qrTokenFromScan } from "@sinema/shared";
 import { prisma } from "../db.js";
 import { HttpError } from "../lib/http-error.js";
 import { hasValidSignature } from "../lib/qr.js";
@@ -8,7 +9,7 @@ const ticketDetails = {
     select: {
       id: true,
       startsAt: true,
-      movie: { select: { id: true, title: true } },
+      movie: { select: { id: true, title: true, durationMin: true } },
       hall: { select: { id: true, name: true } },
     },
   },
@@ -23,8 +24,21 @@ export async function listHolderTickets(holderId: string) {
   });
 }
 
+/** One ticket for its QR link, which opens without signing in; the signed code is the credential. */
+export async function getTicketByQrToken(qrToken: string) {
+  if (!hasValidSignature(qrToken)) throw new HttpError(404, "NOT_FOUND", "Ticket not found");
+  const ticket = await prisma.ticket.findUnique({
+    where: { qrToken },
+    select: { id: true, qrToken: true, status: true, ...ticketDetails },
+  });
+  if (!ticket) throw new HttpError(404, "NOT_FOUND", "Ticket not found");
+  return ticket;
+}
+
 /** Admits a ticket once: PAID becomes USED atomically, so two scanners cannot both admit it. */
-export async function verifyTicket(qrToken: string) {
+export async function verifyTicket(scanned: string) {
+  // Scanners read the ticket link printed in the QR code; the code is its last segment.
+  const qrToken = qrTokenFromScan(scanned);
   if (!hasValidSignature(qrToken)) {
     throw new HttpError(400, "INVALID_QR", "This is not a valid ticket code");
   }

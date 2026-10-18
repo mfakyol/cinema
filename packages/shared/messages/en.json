@@ -62,7 +62,20 @@
       "USED": "Used",
       "CANCELLED": "Cancelled"
     },
-    "showAtEntrance": "Show this code at the entrance."
+    "showAtEntrance": "Show this code at the entrance.",
+    "notFound": "This ticket link is not valid.",
+    "ticketTitle": "Your ticket",
+    "details": {
+      "movie": "Movie",
+      "date": "Date",
+      "time": "Time",
+      "hall": "Hall",
+      "seat": "Seat",
+      "seatType": "Seat type",
+      "standard": "Standard",
+      "statusLabel": "Status",
+      "duration": "Duration"
+    }
   },
   "errors": {
     "SEAT_TAKEN": "Someone else just took that seat.",
@@ -82,7 +95,16 @@
     "sentTo": "Tickets were sent to {email}.",
     "notFound": "This order link is not valid.",
     "email": "Email for your tickets",
-    "emailHint": "We send your QR codes and a link to them here."
+    "emailHint": "We send your QR codes and a link to them here.",
+    "downloadPdf": "Download PDF",
+    "saveImage": "Save as image",
+    "addToCalendar": "Add to calendar",
+    "share": "Share",
+    "shareText": "My tickets for {movie}",
+    "linkCopied": "Link copied",
+    "calendarDescription": "Seats: {seats}. Show your QR codes at the entrance: {link}",
+    "shareTicket": "Share ticket",
+    "shareTicketText": "Your ticket for {movie} ({seat}). Show the QR code at the entrance."
   },
   "email": {
     "subject": "Your tickets for {movie}",

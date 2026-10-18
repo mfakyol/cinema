@@ -94,7 +94,7 @@ export interface Ticket {
   showtime: {
     id: string;
     startsAt: string;
-    movie: { id: string; title: string };
+    movie: { id: string; title: string; durationMin: number };
     hall: { id: string; name: string };
   };
 }

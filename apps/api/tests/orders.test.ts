@@ -71,7 +71,7 @@ describe("ticket emails and order links", () => {
     expect(page.body.order.tickets[0]).toMatchObject({
       status: "PAID",
       seat: { row: "A", number: 1 },
-      showtime: { movie: { title: "Test Movie" } },
+      showtime: { movie: { title: "Test Movie", durationMin: 100 } },
     });
   });
 

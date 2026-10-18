@@ -42,6 +42,7 @@ export const checkoutSchema = z.object({
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 
 export const verifyTicketSchema = z.object({
-  qrToken: z.string().min(1).max(200),
+  /** What the scanner read: the ticket link from the QR code, or a bare ticket code. */
+  qrToken: z.string().min(1).max(500),
 });
 export type VerifyTicketInput = z.infer<typeof verifyTicketSchema>;

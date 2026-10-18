@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { LoadError } from "@/components/load-error";
 import { TicketCard } from "@/components/ticket-card";
+import { TicketPassExports } from "@/components/ticket-pass";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, apiFetch, type OrderPage } from "@/lib/api";
+import { OrderActions, TicketActions } from "@/components/ticket-actions";
 
 /** The tickets behind an emailed order link; works on any device, without signing in. */
 export function OrderTickets({ token }: { token: string }) {
@@ -40,17 +42,19 @@ export function OrderTickets({ token }: { token: string }) {
           <p className="text-muted-foreground">{t("order.sentTo", { email: order.data.order.email })}</p>
         )}
       </div>
+      {order.data && <OrderActions order={order.data.order} />}
       {order.isPending ? (
         <Skeleton className="h-48 w-full" />
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2">
           {order.data.order.tickets.map((ticket) => (
             <li key={ticket.id}>
-              <TicketCard ticket={ticket} />
+              <TicketCard ticket={ticket} actions={<TicketActions ticket={ticket} />} />
             </li>
           ))}
         </ul>
       )}
+      {order.data && <TicketPassExports tickets={order.data.order.tickets} />}
     </div>
   );
 }

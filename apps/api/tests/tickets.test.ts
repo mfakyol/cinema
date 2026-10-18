@@ -1,3 +1,4 @@
+import { ticketUrl } from "@sinema/shared";
 import { describe, expect, it } from "vitest";
 import { api, bearer, checkout, createFixture, createUser, lock } from "./helpers.js";
 
@@ -22,6 +23,28 @@ describe("ticket verification", () => {
 
     const again = await verify(staff.token, qrToken).expect(409);
     expect(again.body.error.code).toBe("ALREADY_USED");
+  });
+
+  it("admits a ticket from the link its QR code holds", async () => {
+    const { qrToken } = await buyTicket();
+    const staff = await createUser("STAFF");
+
+    const res = await verify(staff.token, ticketUrl("http://localhost:3000", qrToken)).expect(200);
+    expect(res.body.ticket.status).toBe("USED");
+  });
+
+  it("opens a ticket by its link without signing in", async () => {
+    const { qrToken } = await buyTicket();
+    const res = await api().get(`/api/tickets/${qrToken}`).expect(200);
+    expect(res.body.ticket).toMatchObject({
+      qrToken,
+      status: "PAID",
+      seat: { row: "A", number: 1 },
+      showtime: { movie: { title: "Test Movie" } },
+    });
+
+    const [body] = qrToken.split(".");
+    await api().get(`/api/tickets/${body}.forged-signature-00000`).expect(404);
   });
 
   it("admits a ticket only once when two scanners race", async () => {
