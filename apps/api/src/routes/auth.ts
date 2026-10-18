@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
-import { loginSchema, registerSchema } from "@sinema/shared";
+import { guestSessionSchema, loginSchema, registerSchema } from "@sinema/shared";
 import { isUniqueViolation, prisma } from "../db.js";
 import { HttpError } from "../lib/http-error.js";
 import { signToken } from "../lib/jwt.js";
@@ -45,7 +45,10 @@ authRouter.post("/login", async (req, res) => {
   res.json({ token: signToken({ sub: user.id, role: user.role }), user: publicUser(user) });
 });
 
-/** Starts a kiosk session: an anonymous identity that can lock seats and check out. */
-authRouter.post("/guest", (_req, res) => {
-  res.status(201).json({ token: signToken({ sub: `guest_${randomUUID()}`, role: "GUEST" }) });
+/** Starts a guest session: an anonymous identity that can lock seats, check out and see its tickets. */
+authRouter.post("/guest", (req, res) => {
+  const { channel } = validate(guestSessionSchema, req.body ?? {});
+  res
+    .status(201)
+    .json({ token: signToken({ sub: `guest_${randomUUID()}`, role: "GUEST", channel }) });
 });

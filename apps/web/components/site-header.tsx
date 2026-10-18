@@ -24,14 +24,16 @@ export function SiteHeader() {
           <Clapperboard className="size-5 text-primary" aria-hidden />
           {t("appName")}
         </Link>
-        {session ? (
+        {session && (
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/tickets">
+              <Ticket aria-hidden />
+              {t("myTickets")}
+            </Link>
+          </Button>
+        )}
+        {session?.user ? (
           <>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/tickets">
-                <Ticket aria-hidden />
-                {t("myTickets")}
-              </Link>
-            </Button>
             <span className="hidden text-sm text-muted-foreground sm:inline">{session.user.name}</span>
             <Button variant="outline" size="sm" onClick={signOut}>
               {t("signOut")}

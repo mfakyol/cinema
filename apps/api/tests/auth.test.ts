@@ -44,8 +44,13 @@ describe("auth", () => {
     await api().get("/api/me/tickets").set(bearer("not.a.token")).expect(401);
   });
 
-  it("gives kiosk guests a token that cannot list tickets", async () => {
-    const guest = await api().post("/api/auth/guest").expect(201);
-    await api().get("/api/me/tickets").set(bearer(guest.body.token)).expect(403);
+  it("starts guest sessions without an account", async () => {
+    const guest = await api().post("/api/auth/guest").send({ channel: "WEB" }).expect(201);
+    const res = await api().get("/api/me/tickets").set(bearer(guest.body.token)).expect(200);
+    expect(res.body.tickets).toEqual([]);
+  });
+
+  it("rejects an unknown guest channel", async () => {
+    await api().post("/api/auth/guest").send({ channel: "FAX" }).expect(400);
   });
 });

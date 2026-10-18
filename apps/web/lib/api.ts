@@ -1,5 +1,5 @@
 import type { SeatState } from "@sinema/shared";
-import { getSessionToken } from "./session";
+import { getSessionToken, setSession } from "./session";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -25,6 +25,8 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
       ...init.headers,
     },
   });
+  // An expired or revoked token: forget it, so the next action starts a fresh session.
+  if (response.status === 401 && token) setSession(null);
   if (response.status === 204) return undefined as T;
   const body = await response.json().catch(() => null);
   if (!response.ok) {

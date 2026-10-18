@@ -36,7 +36,6 @@
     "heldFor": "{time} boyunca ayrıldı",
     "pay": "{amount} öde",
     "payDeclined": "Reddedilen kartı dene",
-    "signInToBuy": "Koltuk seçmek için giriş yap",
     "purchased": "Biletlerin onaylandı.",
     "ticketCount": "{count, plural, other {# bilet}}",
     "viewTickets": "Biletleri gör",
@@ -75,7 +74,7 @@
     "INVALID_CREDENTIALS": "E-posta veya şifre hatalı.",
     "EMAIL_TAKEN": "Bu e-postayla bir hesap zaten var.",
     "VALIDATION": "Lütfen işaretli alanları kontrol et.",
-    "UNAUTHENTICATED": "Lütfen tekrar giriş yap.",
+    "UNAUTHENTICATED": "Oturumun sona erdi. Lütfen tekrar dene.",
     "generic": "Bir sorun oluştu. Lütfen tekrar dene."
   }
 }

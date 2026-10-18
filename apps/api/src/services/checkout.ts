@@ -48,7 +48,7 @@ export async function checkout(auth: AuthClaims, input: CheckoutInput) {
 
   const isGuest = auth.role === "GUEST";
   const userId = isGuest ? null : auth.sub;
-  const channel = isGuest ? "KIOSK" : input.channel;
+  const channel = isGuest ? (auth.channel ?? "KIOSK") : input.channel;
   const amount = locks[0]!.showtime.price * locks.length;
 
   let order;

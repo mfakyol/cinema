@@ -36,7 +36,6 @@
     "heldFor": "Held for {time}",
     "pay": "Pay {amount}",
     "payDeclined": "Simulate a declined card",
-    "signInToBuy": "Sign in to choose seats",
     "purchased": "Your tickets are confirmed.",
     "ticketCount": "{count, plural, one {# ticket} other {# tickets}}",
     "viewTickets": "View tickets",
@@ -75,7 +74,7 @@
     "INVALID_CREDENTIALS": "Email or password is wrong.",
     "EMAIL_TAKEN": "An account with this email already exists.",
     "VALIDATION": "Please check the highlighted fields.",
-    "UNAUTHENTICATED": "Please sign in again.",
+    "UNAUTHENTICATED": "Your session expired. Please try again.",
     "generic": "Something went wrong. Please try again."
   }
 }

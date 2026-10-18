@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { apiFetch, type Order, postJson, type SeatMap, type SeatMapSeat } from "@/lib/api";
 import { useErrorMessage, usePrice } from "@/lib/format";
 import { useLiveSeatMap } from "@/lib/realtime";
-import { useSession } from "@/lib/session";
+import { ensureSessionToken, useSession } from "@/lib/session";
 import { SeatGrid } from "./seat-grid";
 import { formatRemaining, useCountdown } from "./use-countdown";
 
@@ -28,8 +28,8 @@ export function SeatPicker({ id }: { id: string }) {
   const queryClient = useQueryClient();
   const [purchased, setPurchased] = useState<Order | null>(null);
 
-  // Keyed by user so signing in or out refetches with the right "mine" flags.
-  const queryKey = ["seats", id, session?.user.id ?? "anonymous"] as const;
+  // Keyed by session so a new guest session or a sign-in refetches with the right "mine" flags.
+  const queryKey = ["seats", id, session?.token ?? "anonymous"] as const;
   const seatMap = useQuery({
     queryKey,
     queryFn: () => apiFetch<SeatMap>(`/showtimes/${id}/seats`),
@@ -38,10 +38,12 @@ export function SeatPicker({ id }: { id: string }) {
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["seats", id] });
 
   const toggleSeat = useMutation({
-    mutationFn: (seat: SeatMapSeat) =>
-      seat.lockId
-        ? apiFetch<void>(`/locks/${seat.lockId}`, { method: "DELETE" })
-        : postJson(`/showtimes/${id}/locks`, { seatIds: [seat.id] }),
+    mutationFn: async (seat: SeatMapSeat) => {
+      if (seat.lockId) return apiFetch<void>(`/locks/${seat.lockId}`, { method: "DELETE" });
+      // No account needed: the first seat tapped starts a guest session.
+      await ensureSessionToken();
+      return postJson(`/showtimes/${id}/locks`, { seatIds: [seat.id] });
+    },
     onError: (error) => toast.error(errorMessage(error)),
     onSettled: refresh,
   });
@@ -88,14 +90,6 @@ export function SeatPicker({ id }: { id: string }) {
     minute: "2-digit",
   });
 
-  const onToggle = (seat: SeatMapSeat) => {
-    if (!session) {
-      toast(t("seats.signInToBuy"));
-      return;
-    }
-    toggleSeat.mutate(seat);
-  };
-
   return (
     <div className="space-y-6">
       <Button variant="ghost" size="sm" asChild className="-ml-3">
@@ -126,16 +120,9 @@ export function SeatPicker({ id }: { id: string }) {
             <SeatGrid
               seats={seats}
               busySeatId={toggleSeat.isPending ? toggleSeat.variables.id : null}
-              onToggle={onToggle}
+              onToggle={(seat) => toggleSeat.mutate(seat)}
             />
-            <p className="mt-6 text-center text-sm text-muted-foreground">
-              {session ? t("seats.pickHint") : null}
-              {!session && (
-                <Button variant="link" asChild>
-                  <Link href={`/login?next=/showtimes/${id}`}>{t("seats.signInToBuy")}</Link>
-                </Button>
-              )}
-            </p>
+            <p className="mt-6 text-center text-sm text-muted-foreground">{t("seats.pickHint")}</p>
           </CardContent>
         </Card>
 

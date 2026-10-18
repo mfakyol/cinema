@@ -14,6 +14,12 @@ export const loginSchema = z.object({
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
+export const guestSessionSchema = z.object({
+  /** The kiosk app asks for KIOSK; the website and mobile app for their own channel. */
+  channel: z.enum(["WEB", "MOBILE", "KIOSK"]).default("KIOSK"),
+});
+export type GuestSessionInput = z.infer<typeof guestSessionSchema>;
+
 export const lockSeatsSchema = z.object({
   seatIds: z.array(z.uuid()).min(1).max(MAX_LOCKS_PER_HOLDER),
 });
@@ -23,7 +29,7 @@ export const checkoutSchema = z.object({
   showtimeId: z.uuid(),
   /** Client-generated; repeating a checkout with the same key returns the same order. */
   idempotencyKey: z.string().min(8).max(100),
-  /** Ignored for kiosk guests, whose channel is always KIOSK. */
+  /** Ignored for guests, whose channel comes from their guest session. */
   channel: z.enum(["WEB", "MOBILE"]).default("WEB"),
   /** Lets demos and tests trigger a declined payment with the fake provider. */
   simulate: z.enum(["success", "decline"]).default("success"),

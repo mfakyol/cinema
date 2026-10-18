@@ -1,12 +1,15 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import type { User } from "./api";
+import { postJson, type User } from "./api";
 
-/** The signed-in customer, kept in localStorage so it survives reloads. */
+/**
+ * Who is buying, kept in localStorage so it survives reloads. Customers do not need an
+ * account: a guest session has a token but no user, and still sees its own tickets here.
+ */
 export interface Session {
   token: string;
-  user: User;
+  user: User | null;
 }
 
 const STORAGE_KEY = "sinema.session";
@@ -61,7 +64,25 @@ export function getSessionToken(): string | undefined {
   return read()?.token;
 }
 
-/** The current session; null on the server and while signed out. */
+let guestRequest: Promise<string> | undefined;
+
+/** The current token, starting a guest session first when there is none. */
+export async function ensureSessionToken(): Promise<string> {
+  const existing = getSessionToken();
+  if (existing) return existing;
+  // One guest session even when several seats are tapped at once.
+  guestRequest ??= postJson<{ token: string }>("/auth/guest", { channel: "WEB" })
+    .then(({ token }) => {
+      setSession({ token, user: null });
+      return token;
+    })
+    .finally(() => {
+      guestRequest = undefined;
+    });
+  return guestRequest;
+}
+
+/** The current session; null on the server and before anything was bought or signed in. */
 export function useSession(): Session | null {
   return useSyncExternalStore(subscribe, read, () => null);
 }

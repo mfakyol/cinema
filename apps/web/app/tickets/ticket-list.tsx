@@ -19,22 +19,16 @@ export function TicketList() {
   const session = useSession();
 
   const tickets = useQuery({
-    queryKey: ["tickets", session?.user.id],
+    queryKey: ["tickets", session?.token],
     queryFn: () => apiFetch<{ tickets: Ticket[] }>("/me/tickets"),
     enabled: Boolean(session),
   });
 
-  if (!session) {
-    return (
-      <Button asChild>
-        <Link href="/login?next=/tickets">{t("common.signIn")}</Link>
-      </Button>
-    );
-  }
   if (tickets.isError) return <LoadError onRetry={() => void tickets.refetch()} />;
-  if (tickets.isPending) return <Skeleton className="h-48 w-full" />;
+  // Without a session nothing was bought on this device yet.
+  if (session && tickets.isPending) return <Skeleton className="h-48 w-full" />;
 
-  if (tickets.data.tickets.length === 0) {
+  if (!tickets.data || tickets.data.tickets.length === 0) {
     return (
       <div className="space-y-4">
         <p className="text-muted-foreground">{t("tickets.empty")}</p>

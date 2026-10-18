@@ -52,8 +52,8 @@ export async function createUser(role: Role = "CUSTOMER") {
   return { user, token: signToken({ sub: user.id, role }) };
 }
 
-export async function guestToken(): Promise<string> {
-  const res = await api().post("/api/auth/guest").expect(201);
+export async function guestToken(channel?: "WEB" | "MOBILE" | "KIOSK"): Promise<string> {
+  const res = await api().post("/api/auth/guest").send(channel ? { channel } : {}).expect(201);
   return res.body.token;
 }
 

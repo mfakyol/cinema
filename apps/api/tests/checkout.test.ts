@@ -35,6 +35,22 @@ describe("checkout", () => {
     expect(res.body.order.tickets[0].channel).toBe("KIOSK");
   });
 
+  it("lets a web guest buy without an account and see the tickets on that device", async () => {
+    const { showtime, seats } = await createFixture();
+    const token = await guestToken("WEB");
+    const other = await guestToken("WEB");
+    await lock(token, showtime.id, [seats[0]!.id]).expect(201);
+
+    const res = await checkout(token, showtime.id, { channel: "MOBILE" }).expect(201);
+    expect(res.body.order.userId).toBeNull();
+    expect(res.body.order.tickets[0].channel).toBe("WEB");
+
+    const mine = await api().get("/api/me/tickets").set(bearer(token)).expect(200);
+    expect(mine.body.tickets).toHaveLength(1);
+    const theirs = await api().get("/api/me/tickets").set(bearer(other)).expect(200);
+    expect(theirs.body.tickets).toHaveLength(0);
+  });
+
   it("returns the same order when retried with the same idempotency key", async () => {
     const { showtime, seats } = await createFixture();
     const { token } = await createUser();

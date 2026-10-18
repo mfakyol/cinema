@@ -14,9 +14,10 @@ const ticketDetails = {
   },
 } as const;
 
-export async function listUserTickets(userId: string) {
+/** Tickets bought by a user or a guest session; guests have no user, so match the order holder. */
+export async function listHolderTickets(holderId: string) {
   return prisma.ticket.findMany({
-    where: { userId },
+    where: { order: { holderId } },
     include: ticketDetails,
     orderBy: [{ showtime: { startsAt: "desc" } }, { seat: { row: "asc" } }, { seat: { number: "asc" } }],
   });

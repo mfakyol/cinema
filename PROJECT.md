@@ -17,9 +17,9 @@ There are three roles: customer, staff and admin. All three clients can sell tic
 
 | Client | Used by | What it does |
 | --- | --- | --- |
-| Web – customer site | Customer | Picks a movie, showtime and seats, pays, gets a QR ticket, sees their tickets |
+| Web – customer site | Customer (guest or signed in) | Picks a movie, showtime and seats, pays, gets a QR ticket, sees their tickets; no account needed |
 | Web – `/admin` panel | Admin | Adds movies, halls, seat layouts and showtimes; sees sales and occupancy reports; manages staff accounts |
-| Mobile (Expo) | Customer | Same purchase flow as the web + my tickets |
+| Mobile (Expo) | Customer (guest or signed in) | Same purchase flow as the web + my tickets |
 | Mobile (Expo) – staff mode | Staff | Scans QR codes at the hall entrance and marks tickets as used |
 | Kiosk (Electron) | Customer (guest) | Buys a ticket quickly on a lobby touchscreen without signing in |
 
@@ -68,7 +68,7 @@ Eight tables: user, movie, hall, seat, showtime, seat lock, order and ticket.
 
 | Table | Main fields | Notes |
 | --- | --- | --- |
-| User | id, email, passwordHash, name, role (CUSTOMER / STAFF / ADMIN) | Kiosk purchases can have no user |
+| User | id, email, passwordHash, name, role (CUSTOMER / STAFF / ADMIN) | Guest purchases have no user |
 | Movie | id, title, description, durationMin, genre, posterUrl, tmdbId? | Fixed catalog from the seed |
 | Hall | id, name | |
 | Seat | id, hallId, row (A, B…), number, type (STANDARD / VIP) | Unique: hallId + row + number |
@@ -105,15 +105,15 @@ REST endpoints live under `/api`; real-time events go to per-showtime rooms.
 | Method | Path | What it does | Access |
 | --- | --- | --- | --- |
 | POST | /auth/register, /auth/login | Sign up and sign in, returns a JWT | Anyone |
-| POST | /auth/guest | Start a kiosk session, returns a short-lived guest JWT | Anyone |
+| POST | /auth/guest | Start a guest session for a channel (WEB / MOBILE / KIOSK), returns a guest JWT | Anyone |
 | GET | /movies | Movies now showing | Anyone |
 | GET | /movies/:id | One movie | Anyone |
 | GET | /movies/:id/showtimes | A movie's upcoming showtimes | Anyone |
 | GET | /showtimes/:id/seats | Seats + state (free / locked / sold) | Anyone |
-| POST | /showtimes/:id/locks | Lock seats | Customer, kiosk guest |
+| POST | /showtimes/:id/locks | Lock seats | Customer, guest |
 | DELETE | /locks/:id | Release a lock | Lock holder |
-| POST | /checkout | Simulate payment, create tickets (idempotent per key) | Customer, kiosk guest |
-| GET | /me/tickets | My tickets | Customer |
+| POST | /checkout | Simulate payment, create tickets (idempotent per key) | Customer, guest |
+| GET | /me/tickets | Tickets bought by this user or guest session | Customer, guest |
 | POST | /tickets/verify | Check a QR code, mark the ticket used | Staff |
 | CRUD | /admin/movies, /admin/halls, /admin/showtimes | Administration | Admin |
 | GET | /admin/reports/sales | Sales and occupancy report | Admin |
@@ -136,7 +136,7 @@ These are the defaults; changes are recorded here.
 | Payment | Simulated first (`FakeProvider`) behind a `PaymentProvider` interface; a real provider's test mode (iyzico or Stripe) after the MVP |
 | Real-time | Yes, Socket.io |
 | Kiosk ticket | QR on screen first, printer later |
-| Accounts | Sign-up on web and mobile, guest on the kiosk |
+| Accounts | Optional everywhere: web and mobile customers can buy as guests (their tickets stay on that device) or sign in; the kiosk is always guest |
 | Movie data | Fixed catalog in the seed; the same daily showtime schedule repeats. The seed covers 3 days for now; a full schedule through 2030 comes later |
 | Content language | English throughout: UI, seed data, docs |
 
