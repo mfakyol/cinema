@@ -3,18 +3,18 @@ import { useColorScheme } from "react-native";
 /** The website's palette (shadcn neutral + cinema red), so the app and the site look alike. */
 export const palette = {
   light: {
-    background: "#ffffff",
+    // A soft warm off-white instead of pure white, easier on the eyes; cards stay white.
+    background: "#f5f4f1",
     foreground: "#0a0a0a",
     card: "#ffffff",
-    muted: "#f5f5f5",
+    muted: "#ebe9e5",
     mutedForeground: "#737373",
-    border: "#e5e5e5",
+    border: "#e0ddd8",
     primary: "#c8102e",
     primaryForeground: "#fafafa",
     destructive: "#dc2626",
     success: "#16a34a",
-    vip: "#f59e0b",
-    seatTaken: "#d4d4d4",
+    seatTaken: "#cfcbc5",
   },
   dark: {
     background: "#0a0a0a",
@@ -27,7 +27,6 @@ export const palette = {
     primaryForeground: "#fafafa",
     destructive: "#f87171",
     success: "#22c55e",
-    vip: "#fbbf24",
     seatTaken: "#404040",
   },
 } as const;

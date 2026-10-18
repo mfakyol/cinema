@@ -11,3 +11,10 @@ allowBuilds:
   "@parcel/watcher": false
   "@swc/core": false
   unrs-resolver: false
+
+# Next.js type files import React types without declaring them; take them from the app
+# using Next.js, so the web app does not pick up the mobile apps' older React types.
+packageExtensions:
+  next:
+    peerDependencies:
+      "@types/react": "*"

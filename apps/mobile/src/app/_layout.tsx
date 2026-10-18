@@ -29,7 +29,10 @@ function Navigator() {
     <Stack screenOptions={{ headerBackButtonDisplayMode: "minimal" }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="movies/[id]" options={{ title: "" }} />
-      <Stack.Screen name="showtimes/[id]" options={{ title: t("movie.showtimes") }} />
+      <Stack.Screen name="showtimes/[id]/index" options={{ title: t("steps.seats") }} />
+      <Stack.Screen name="showtimes/[id]/extras" options={{ title: t("extras.title") }} />
+      <Stack.Screen name="showtimes/[id]/checkout" options={{ title: t("steps.payment") }} />
+      <Stack.Screen name="concessions/[id]" options={{ title: t("concessions.itemTitle") }} />
       <Stack.Screen name="tickets/[id]" options={{ title: t("tickets.ticketTitle") }} />
       <Stack.Screen name="sign-in" options={{ presentation: "modal", title: t("common.signIn") }} />
       <Stack.Screen name="register" options={{ presentation: "modal", title: t("common.register") }} />
@@ -57,7 +60,8 @@ export default function RootLayout() {
       ...base.colors,
       primary: colors.primary,
       background: colors.background,
-      card: colors.background,
+      // Header and tab bar use the card colour, so they stand apart from the off-white page.
+      card: colors.card,
       text: colors.foreground,
       border: colors.border,
     },

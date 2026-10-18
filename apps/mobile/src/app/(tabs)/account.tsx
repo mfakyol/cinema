@@ -16,6 +16,7 @@ export default function AccountScreen() {
         <Text variant="muted">{t("app.signInToBuy")}</Text>
         <Button title={t("common.signIn")} onPress={() => router.push("/sign-in")} />
         <Button title={t("common.register")} variant="outline" onPress={() => router.push("/register")} />
+        <Text variant="small">{t("common.tmdbAttribution")}</Text>
       </Screen>
     );
   }
@@ -33,6 +34,7 @@ export default function AccountScreen() {
         <Text variant="muted">{session.user.email}</Text>
       </Card>
       <Button title={t("common.signOut")} variant="outline" onPress={() => void signOut()} />
+      <Text variant="small">{t("common.tmdbAttribution")}</Text>
     </Screen>
   );
 }

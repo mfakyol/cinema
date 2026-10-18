@@ -52,7 +52,8 @@ export default function RootLayout() {
       ...base.colors,
       primary: colors.primary,
       background: colors.background,
-      card: colors.background,
+      // Header and tab bar use the card colour, so they stand apart from the off-white page.
+      card: colors.card,
       text: colors.foreground,
       border: colors.border,
     },

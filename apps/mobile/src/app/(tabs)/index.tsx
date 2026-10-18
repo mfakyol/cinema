@@ -1,6 +1,6 @@
 import type { Movie } from "@sinema/shared";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "expo-router";
+import { router } from "expo-router";
 import { Pressable, useWindowDimensions, View } from "react-native";
 import { useTranslations } from "use-intl";
 import { LoadError } from "@/components/load-error";
@@ -26,18 +26,18 @@ export default function MoviesScreen() {
       {movies.data?.movies.length === 0 && <Text variant="muted">{t("home.empty")}</Text>}
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.lg }}>
         {movies.data?.movies.map((movie) => (
-          <Link key={movie.id} href={`/movies/${movie.id}`} asChild>
-            <Pressable
-              accessibilityRole="link"
-              accessibilityLabel={`${movie.title}, ${movie.genre}, ${t("common.minutes", { count: movie.durationMin })}`}
-              style={({ pressed }) => ({ width: columnWidth, gap: spacing.sm, opacity: pressed ? 0.8 : 1 })}
-            >
-              <MoviePoster movie={movie} width={columnWidth} />
-              <Text variant="small">
-                {movie.genre} · {t("common.minutes", { count: movie.durationMin })}
-              </Text>
-            </Pressable>
-          </Link>
+          <Pressable
+            key={movie.id}
+            onPress={() => router.push(`/movies/${movie.id}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`${movie.title}, ${movie.genre}, ${t("common.minutes", { count: movie.durationMin })}`}
+            style={({ pressed }) => ({ width: columnWidth, gap: spacing.sm, opacity: pressed ? 0.8 : 1 })}
+          >
+            <MoviePoster movie={movie} width={columnWidth} />
+            <Text variant="small">
+              {movie.genre} · {t("common.minutes", { count: movie.durationMin })}
+            </Text>
+          </Pressable>
         ))}
       </View>
     </Screen>

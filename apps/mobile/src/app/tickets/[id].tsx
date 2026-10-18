@@ -5,7 +5,7 @@ import { Share, useWindowDimensions, View } from "react-native";
 import { useFormatter, useTranslations } from "use-intl";
 import { LoadError } from "@/components/load-error";
 import { TicketQr } from "@/components/ticket-qr";
-import { Button, Card, Loading, Screen, Text } from "@/components/ui";
+import { BottomBar, Button, Card, Loading, Screen, Text } from "@/components/ui";
 import { api, SITE_URL } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { spacing, useColors } from "@/lib/theme";
@@ -28,7 +28,7 @@ export default function TicketScreen() {
   if (tickets.isError) {
     return (
       <Screen>
-        <LoadError onRetry={() => void tickets.refetch()} />
+          <LoadError onRetry={() => void tickets.refetch()} />
       </Screen>
     );
   }
@@ -43,7 +43,7 @@ export default function TicketScreen() {
     [t("tickets.details.time"), format.dateTime(startsAt, { hour: "2-digit", minute: "2-digit" })],
     [t("tickets.details.hall"), ticket.showtime.hall.name],
     [t("tickets.details.seat"), seat],
-    [t("tickets.details.seatType"), ticket.seat.type === "VIP" ? t("seats.vip") : t("tickets.details.standard")],
+    [t("tickets.details.seatType"), ticket.seat.type === "WHEELCHAIR" ? t("seats.wheelchair") : t("tickets.details.standard")],
     [t("tickets.details.duration"), t("common.minutes", { count: ticket.showtime.movie.durationMin })],
     [t("tickets.details.statusLabel"), t(`tickets.status.${ticket.status}`)],
   ];
@@ -55,45 +55,49 @@ export default function TicketScreen() {
     });
 
   return (
-    <Screen>
-      <Card style={{ opacity: valid ? 1 : 0.7 }}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.md }}>
-          <View style={{ flex: 1, gap: spacing.xs }}>
-            <Text variant="small" style={{ color: colors.primary, fontWeight: "600" }}>
-              {t("common.appName")}
-            </Text>
-            <Text variant="title">{ticket.showtime.movie.title}</Text>
-          </View>
-          <Text variant="small" style={{ color: valid ? colors.primary : colors.mutedForeground, fontWeight: "600" }}>
-            {t(`tickets.status.${ticket.status}`)}
-          </Text>
-        </View>
-        <TicketQr qrToken={ticket.qrToken} size={Math.min(width - 96, 260)} label={t("tickets.showAtEntrance")} />
-        {valid && (
-          <Text variant="small" style={{ textAlign: "center" }}>
-            {t("tickets.showAtEntrance")}
-          </Text>
-        )}
-        <View>
-          {details.map(([label, value]) => (
-            <View
-              key={label}
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                gap: spacing.md,
-                paddingVertical: spacing.sm,
-                borderTopWidth: 1,
-                borderTopColor: colors.border,
-              }}
-            >
-              <Text variant="muted">{label}</Text>
-              <Text style={{ fontWeight: "500", flexShrink: 1, textAlign: "right" }}>{value}</Text>
+    <View style={{ flex: 1 }}>
+      <Screen>
+        <Card style={{ opacity: valid ? 1 : 0.7 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.md }}>
+            <View style={{ flex: 1, gap: spacing.xs }}>
+              <Text variant="small" style={{ color: colors.primary, fontWeight: "600" }}>
+                {t("common.appName")}
+              </Text>
+              <Text variant="title">{ticket.showtime.movie.title}</Text>
             </View>
-          ))}
-        </View>
-      </Card>
-      <Button title={t("order.shareTicket")} variant="outline" onPress={() => void share()} />
-    </Screen>
+            <Text variant="small" style={{ color: valid ? colors.primary : colors.mutedForeground, fontWeight: "600" }}>
+              {t(`tickets.status.${ticket.status}`)}
+            </Text>
+          </View>
+          <TicketQr qrToken={ticket.qrToken} size={Math.min(width - 96, 260)} label={t("tickets.showAtEntrance")} />
+          {valid && (
+            <Text variant="small" style={{ textAlign: "center" }}>
+              {t("tickets.showAtEntrance")}
+            </Text>
+          )}
+          <View>
+            {details.map(([label, value]) => (
+              <View
+                key={label}
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  gap: spacing.md,
+                  paddingVertical: spacing.sm,
+                  borderTopWidth: 1,
+                  borderTopColor: colors.border,
+                }}
+              >
+                <Text variant="muted">{label}</Text>
+                <Text style={{ fontWeight: "500", flexShrink: 1, textAlign: "right" }}>{value}</Text>
+              </View>
+            ))}
+          </View>
+        </Card>
+      </Screen>
+      <BottomBar>
+        <Button title={t("order.shareTicket")} onPress={() => void share()} />
+      </BottomBar>
+    </View>
   );
 }

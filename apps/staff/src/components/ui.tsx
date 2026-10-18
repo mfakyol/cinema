@@ -16,6 +16,7 @@ import {
   type ViewProps,
   type ViewStyle,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { radius, spacing, useColors } from "@/lib/theme";
 
 type TextVariant = "title" | "heading" | "body" | "muted" | "small";
@@ -182,6 +183,27 @@ export function Notice({ text, tone = "error", action }: { text: string; tone?: 
     >
       <Text style={{ color }}>{text}</Text>
       {action}
+    </View>
+  );
+}
+
+/** Actions pinned under a scrolling screen, clear of the home indicator. */
+export function BottomBar({ children }: { children: ReactNode }) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      style={{
+        paddingHorizontal: spacing.lg,
+        paddingTop: spacing.md,
+        paddingBottom: Math.max(insets.bottom, spacing.md),
+        gap: spacing.sm,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: colors.border,
+        backgroundColor: colors.card,
+      }}
+    >
+      {children}
     </View>
   );
 }
