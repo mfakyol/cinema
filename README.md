@@ -21,6 +21,15 @@ pnpm dev:api
 
 The API serves `http://localhost:4000/api/health`.
 
+## Tests
+
+The API tests run against a separate `sinema_test` database in the same PostgreSQL container, created and migrated on first run:
+
+```bash
+pnpm db:up
+pnpm test
+```
+
 ## Demo accounts
 
 The seed creates three accounts, all with the password `demo1234`:

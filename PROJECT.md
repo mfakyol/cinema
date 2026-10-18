@@ -105,12 +105,13 @@ REST endpoints live under `/api`; real-time events go to per-showtime rooms.
 | Method | Path | What it does | Access |
 | --- | --- | --- | --- |
 | POST | /auth/register, /auth/login | Sign up and sign in, returns a JWT | Anyone |
+| POST | /auth/guest | Start a kiosk session, returns a short-lived guest JWT | Anyone |
 | GET | /movies | Movies now showing | Anyone |
 | GET | /movies/:id/showtimes | A movie's showtimes | Anyone |
 | GET | /showtimes/:id/seats | Seats + state (free / locked / sold) | Anyone |
-| POST | /showtimes/:id/locks | Lock seats | Customer, kiosk |
+| POST | /showtimes/:id/locks | Lock seats | Customer, kiosk guest |
 | DELETE | /locks/:id | Release a lock | Lock holder |
-| POST | /checkout | Simulate payment, create tickets | Lock holder |
+| POST | /checkout | Simulate payment, create tickets (idempotent per key) | Customer, kiosk guest |
 | GET | /me/tickets | My tickets | Customer |
 | POST | /tickets/verify | Check a QR code, mark the ticket used | Staff |
 | CRUD | /admin/movies, /admin/halls, /admin/showtimes | Administration | Admin |

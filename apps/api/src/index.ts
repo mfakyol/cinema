@@ -1,16 +1,18 @@
-import "dotenv/config";
-import express from "express";
-import { prisma } from "./db.js";
+import { createServer } from "node:http";
+import { createApp } from "./app.js";
+import { env } from "./env.js";
+import { attachRealtime } from "./realtime.js";
+import { releaseExpiredLocks } from "./services/locks.js";
 
-const app = express();
-app.use(express.json());
+const LOCK_SWEEP_INTERVAL_MS = 15_000;
 
-app.get("/api/health", async (_req, res) => {
-  await prisma.$queryRaw`SELECT 1`;
-  res.json({ ok: true });
-});
+const server = createServer(createApp());
+attachRealtime(server);
 
-const port = Number(process.env.PORT ?? 4000);
-app.listen(port, () => {
-  console.log(`API listening on http://localhost:${port}`);
+setInterval(() => {
+  releaseExpiredLocks().catch((error) => console.error("Lock sweep failed", error));
+}, LOCK_SWEEP_INTERVAL_MS);
+
+server.listen(env.PORT, () => {
+  console.log(`API listening on http://localhost:${env.PORT}`);
 });
