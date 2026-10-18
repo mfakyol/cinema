@@ -1,4 +1,7 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
+import { prisma } from "../src/db.js";
+import { hashPassword } from "../src/lib/password.js";
 import { api, bearer } from "./helpers.js";
 
 const account = { email: "Jane@Example.com", password: "s3cret-pass", name: "Jane" };
@@ -52,5 +55,31 @@ describe("auth", () => {
 
   it("rejects an unknown guest channel", async () => {
     await api().post("/api/auth/guest").send({ channel: "FAX" }).expect(400);
+  });
+
+  it("lets staff set a six-digit lock PIN and sends it at sign-in", async () => {
+    const staff = await prisma.user.create({
+      data: { email: "door@test.local", name: "Door", role: "STAFF", passwordHash: await hashPassword("s3cret-pass") },
+    });
+    const signIn = () => api().post("/api/auth/login").send({ email: staff.email, password: "s3cret-pass" }).expect(200);
+
+    const before = await signIn();
+    expect(before.body.lockPin).toBeNull();
+
+    await api().put("/api/me/pin").set(bearer(before.body.token)).send({ pin: "1234" }).expect(400);
+    const set = await api().put("/api/me/pin").set(bearer(before.body.token)).send({ pin: "482913" }).expect(200);
+
+    const after = await signIn();
+    expect(after.body.lockPin).toEqual(set.body.lockPin);
+    const { salt, digest } = after.body.lockPin;
+    expect(createHash("sha256").update(`${salt}:482913`).digest("hex")).toBe(digest);
+  });
+
+  it("keeps lock PINs to staff", async () => {
+    const registered = await api().post("/api/auth/register").send(account).expect(201);
+    expect(registered.body.lockPin).toBeUndefined();
+    await api().put("/api/me/pin").set(bearer(registered.body.token)).send({ pin: "482913" }).expect(403);
+    const signedIn = await api().post("/api/auth/login").send({ email: account.email, password: account.password });
+    expect(signedIn.body.lockPin).toBeUndefined();
   });
 });

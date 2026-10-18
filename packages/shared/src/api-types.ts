@@ -68,9 +68,17 @@ export interface User {
   role: "CUSTOMER" | "STAFF" | "ADMIN";
 }
 
+/** What the box office checks a typed lock PIN against: SHA-256 of `${salt}:${pin}`, hex. */
+export interface LockPin {
+  salt: string;
+  digest: string;
+}
+
 export interface AuthResponse {
   token: string;
   user: User;
+  /** Staff and admin only: their box-office lock PIN, or null until they set one. */
+  lockPin?: LockPin | null;
 }
 
 export interface Ticket {

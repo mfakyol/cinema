@@ -51,7 +51,7 @@ export function ExtrasStep({ showtimeId, seatCount }: { showtimeId: string; seat
                       aria-label={t("extras.add", { name })}
                       onClick={() => cart.setQuantity(product.id, quantity + 1)}
                       className={cn(
-                        "flex h-full min-h-28 w-full flex-col items-start gap-1 rounded-xl border bg-card p-4 text-left transition-colors hover:border-primary hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-ring active:scale-[0.98]",
+                        "flex h-full min-h-28 w-full flex-col items-start gap-1 rounded-xl border bg-card p-4 text-left transition-colors hover:border-primary hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-ring",
                         quantity > 0 && "border-primary bg-primary/10",
                         glasses && "border-primary/60",
                       )}

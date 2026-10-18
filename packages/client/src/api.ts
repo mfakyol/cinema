@@ -35,7 +35,8 @@ export function createApiClient({ baseUrl, getToken, onUnauthorized }: ApiClient
         ...(init.headers as Record<string, string> | undefined),
       },
     });
-    if (response.status === 401 && token) onUnauthorized?.();
+    // A 401 from sign-in means a wrong password, not an expired session: never sign out for it.
+    if (response.status === 401 && token && !path.startsWith("/auth/")) onUnauthorized?.();
     if (response.status === 204) return undefined as T;
     const body = await response.json().catch(() => null);
     if (!response.ok) {

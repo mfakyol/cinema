@@ -4,6 +4,7 @@ import { guestSessionSchema, loginSchema, registerSchema } from "@sinema/shared"
 import { isUniqueViolation, prisma } from "../db.js";
 import { HttpError } from "../lib/http-error.js";
 import { signToken } from "../lib/jwt.js";
+import { storedLockPin } from "../lib/lock-pin.js";
 import { hashPassword, verifyPassword } from "../lib/password.js";
 import { validate } from "../lib/validate.js";
 
@@ -42,7 +43,12 @@ authRouter.post("/login", async (req, res) => {
   if (!user || !(await verifyPassword(input.password, user.passwordHash))) {
     throw new HttpError(401, "INVALID_CREDENTIALS", "Email or password is wrong");
   }
-  res.json({ token: signToken({ sub: user.id, role: user.role }), user: publicUser(user) });
+  const staff = user.role === "STAFF" || user.role === "ADMIN";
+  res.json({
+    token: signToken({ sub: user.id, role: user.role }),
+    user: publicUser(user),
+    ...(staff && { lockPin: storedLockPin(user) }),
+  });
 });
 
 /** Starts a guest session: an anonymous identity that can lock seats, check out and see its tickets. */

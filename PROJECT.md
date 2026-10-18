@@ -108,6 +108,7 @@ Rules:
 - The door only admits tickets and the stand only hands over items; each turns the other kind away without using it up, so the two never block each other
 - The box office holds seats under the signed-in staff member; clearing a sale releases them, otherwise they expire like any other hold
 - Box-office sales are paid in cash or by card at the counter; the email is optional and the tickets belong to no account
+- The box office locks after 2 minutes without input, or from the header; the staff member's six-digit lock PIN unlocks it and the sale underneath is kept. The PIN is set once on the account (and changed from the header); at sign-in the API sends its salted digest so unlocking needs no round trip. After 3 wrong PINs the account password is asked instead, followed by an offer to set a new PIN. While locked, or with nobody signed in, the customer screen shows the counter as closed
 
 ## API and Socket.io events
 
@@ -125,6 +126,7 @@ REST endpoints live under `/api`; real-time events go to per-showtime rooms.
 | POST | /showtimes/:id/locks | Lock seats | Customer, guest, staff |
 | DELETE | /locks/:id | Release a lock | Lock holder |
 | POST | /checkout | Simulate payment, create tickets (idempotent per key) | Customer, guest |
+| PUT | /me/pin | Set or change the caller's six-digit box-office lock PIN | Staff, admin |
 | POST | /checkout/kiosk | Box-office sale: cash or card, optional email, channel KIOSK | Staff, admin |
 | GET | /me/tickets | Tickets bought by this user or guest session | Customer, guest |
 | GET | /orders/:accessToken | An order's tickets, for the emailed link | Link holder |

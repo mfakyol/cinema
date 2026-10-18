@@ -63,6 +63,10 @@ model User {
   passwordHash String
   name         String
   role         Role     @default(CUSTOMER)
+  /// Box-office lock PIN (staff and admin): a salt and SHA-256 digest the box office checks
+  /// typed PINs against; see apps/api/src/lib/lock-pin.ts.
+  lockPinSalt   String?
+  lockPinDigest String?
   createdAt    DateTime @default(now())
 
   orders  Order[]

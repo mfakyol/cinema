@@ -2,6 +2,7 @@ import "dotenv/config";
 import { existsSync, readFileSync } from "node:fs";
 import { type LayoutRow, seatsFromLayout } from "@sinema/shared";
 import { prisma } from "../src/db.js";
+import { lockPinFor } from "../src/lib/lock-pin.js";
 import { hashPassword } from "../src/lib/password.js";
 
 type ShowFormat = "TWO_D" | "THREE_D" | "IMAX" | "IMAX_3D";
@@ -89,6 +90,8 @@ const START_STEP_MIN = 15;
 
 /** Demo accounts; the README lists them. */
 const DEMO_PASSWORD = "demo1234";
+/** Box-office lock PIN of the demo staff and admin accounts. */
+const DEMO_PIN = "123456";
 
 const DEMO_MOVIES: MovieSeed[] = [
   {
@@ -173,10 +176,14 @@ async function main() {
   await prisma.user.deleteMany();
 
   const passwordHash = await hashPassword(DEMO_PASSWORD);
+  const pin = () => {
+    const { salt, digest } = lockPinFor(DEMO_PIN);
+    return { lockPinSalt: salt, lockPinDigest: digest };
+  };
   await prisma.user.createMany({
     data: [
-      { email: "admin@sinema.test", name: "Admin", role: "ADMIN", passwordHash },
-      { email: "staff@sinema.test", name: "Staff", role: "STAFF", passwordHash },
+      { email: "admin@sinema.test", name: "Admin", role: "ADMIN", passwordHash, ...pin() },
+      { email: "staff@sinema.test", name: "Staff", role: "STAFF", passwordHash, ...pin() },
       { email: "customer@sinema.test", name: "Customer", role: "CUSTOMER", passwordHash },
     ],
   });

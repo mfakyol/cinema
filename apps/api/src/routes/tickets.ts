@@ -1,8 +1,10 @@
 import { Router } from "express";
 import QRCode from "qrcode";
-import { scanSchema, ticketUrl } from "@sinema/shared";
+import { lockPinSchema, scanSchema, ticketUrl } from "@sinema/shared";
+import { prisma } from "../db.js";
 import { env } from "../env.js";
 import { HttpError } from "../lib/http-error.js";
+import { lockPinFor } from "../lib/lock-pin.js";
 import { hasValidSignature } from "../lib/qr.js";
 import { validate } from "../lib/validate.js";
 import { caller, requireAuth } from "../middleware/auth.js";
@@ -17,6 +19,17 @@ meRouter.get("/tickets", requireAuth(), async (req, res) => {
 
 meRouter.get("/concessions", requireAuth(), async (req, res) => {
   res.json({ vouchers: await listHolderVouchers(caller(req).sub) });
+});
+
+/** Sets or changes the caller's box-office lock PIN; the new digest comes back for the box office. */
+meRouter.put("/pin", requireAuth("STAFF", "ADMIN"), async (req, res) => {
+  const { pin } = validate(lockPinSchema, req.body);
+  const lockPin = lockPinFor(pin);
+  await prisma.user.update({
+    where: { id: caller(req).sub },
+    data: { lockPinSalt: lockPin.salt, lockPinDigest: lockPin.digest },
+  });
+  res.json({ lockPin });
 });
 
 export const ticketsRouter = Router();

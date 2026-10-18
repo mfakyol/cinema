@@ -27,7 +27,7 @@ The website picks English or Turkish from the browser's language and light or da
 
 ## Box office (kiosk)
 
-`pnpm dev:kiosk` starts the box office at `http://localhost:5174`. Sign in with a staff account (`staff@sinema.test` / `demo1234` in the seed data), then press "Open customer screen" and move that window to the second monitor (or open `http://localhost:5174/display`). Both windows must run in the same browser. Set `VITE_API_URL` and `VITE_SITE_URL` in `apps/kiosk/.env.local` when the API or the website run elsewhere.
+`pnpm dev:kiosk` starts the box office at `http://localhost:5174`. Sign in with a staff account (`staff@sinema.test` / `demo1234` in the seed data; its lock PIN is `123456`), then press "Open customer screen" and move that window to the second monitor (or open `http://localhost:5174/display`). Both windows must run in the same browser. Set `VITE_API_URL` and `VITE_SITE_URL` in `apps/kiosk/.env.local` when the API or the website run elsewhere.
 
 ## Mobile apps
 

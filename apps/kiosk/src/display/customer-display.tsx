@@ -2,7 +2,6 @@ import type { OrderPage, SeatMapSeat } from "@sinema/shared";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Clapperboard } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { useEffect } from "react";
 import { toast } from "sonner";
 import { useLocale, useTranslations } from "use-intl";
 import { SeatGrid } from "@/components/seat-grid";
@@ -23,16 +22,13 @@ import { cn } from "@/lib/utils";
  * pick them, then a QR code that puts the tickets on their phone.
  */
 export function CustomerDisplay() {
-  const t = useTranslations();
   const state = useKioskState();
 
-  useEffect(() => {
-    document.title = `${t("kiosk.display.title")} · ${t("common.appName")}`;
-  }, [t]);
-
   return (
-    <div className="flex h-dvh flex-col overflow-y-auto p-6 [scrollbar-gutter:stable] lg:p-8">
-      {state?.orderToken ? (
+    <div className="flex h-dvh flex-col overflow-y-auto p-6 lg:p-8">
+      {!state || state.locked ? (
+        <Closed />
+      ) : state?.orderToken ? (
         <Receipt key={state.orderToken} token={state.orderToken} />
       ) : state?.showtimeId ? (
         <Basket showtimeId={state.showtimeId} items={state.items} canPickSeats={state.step === "seats"} />
@@ -43,13 +39,33 @@ export function CustomerDisplay() {
   );
 }
 
+/** The cinema's mark: the clapperboard and the name. */
+function Logo() {
+  const t = useTranslations("common");
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <Clapperboard className="size-24 text-primary" strokeWidth={1.5} aria-hidden />
+      <p className="text-5xl font-bold tracking-tight">{t("appName")}</p>
+    </div>
+  );
+}
+
+/** Locked, or nobody signed in at the counter: just the logo. */
+function Closed() {
+  return (
+    <div className="m-auto text-muted-foreground">
+      <Logo />
+    </div>
+  );
+}
+
+/** Open and waiting for the next customer. */
 function Welcome() {
   const t = useTranslations("kiosk.display");
   return (
-    <div className="m-auto animate-in space-y-4 text-center duration-500 fade-in">
-      <Clapperboard className="mx-auto size-16 text-primary" aria-hidden />
-      <h1 className="text-4xl font-bold tracking-tight lg:text-6xl">{t("welcome")}</h1>
-      <p className="text-lg text-muted-foreground lg:text-xl">{t("welcomeSubtitle")}</p>
+    <div className="m-auto flex flex-col items-center gap-6">
+      <Logo />
+      <h1 className="text-3xl font-medium text-muted-foreground lg:text-4xl">{t("welcome")}</h1>
     </div>
   );
 }
@@ -84,61 +100,65 @@ function Basket({
   const { showtime, seats, columns } = seatMap.data;
   const { lines, total } = basket(products.data?.products, new Map(items), showtime.price, mine.length);
 
-  // One layout for every step, so the hall never moves or redraws: the seat map always fills
-  // the screen and is tappable on the seats step; afterwards the basket slides in over its
-  // right side.
   return (
-    <div className="flex min-h-0 flex-1 animate-in flex-col gap-4 duration-500 fade-in">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <ShowtimeHeader showtime={showtime} />
-        <p className={cn("text-xl font-semibold text-primary", !canPickSeats && "invisible")} aria-hidden={!canPickSeats}>
+        <p
+          className={cn("text-xl font-semibold text-primary", !canPickSeats && "invisible")}
+          aria-hidden={!canPickSeats}
+        >
           {t("kiosk.display.pickSeats")}
         </p>
       </div>
-      <div className="relative min-h-0 flex-1">
-        <SeatGrid
-          fill
-          seats={seats}
-          columns={columns}
-          busySeatId={toggleSeat.isPending ? toggleSeat.variables.id : null}
-          onToggle={canPickSeats ? (seat) => toggleSeat.mutate(seat) : undefined}
-        />
-        {!canPickSeats && (
-          <Card className="absolute inset-y-0 right-0 w-full max-w-md animate-in overflow-y-auto shadow-2xl duration-300 slide-in-from-right-8 fade-in">
-            <CardContent className="space-y-4 pt-2 text-lg">
-              {mine.map((seat) => (
-                <div key={seat.id} className="flex justify-between gap-4">
-                  <span>{t("seats.seatLabel", { row: seat.row, number: seat.number })}</span>
-                  <span className="tabular-nums">{price(showtime.price)}</span>
-                </div>
-              ))}
-              {lines.map(({ product, quantity }) => (
-                <div key={product.id} className="flex justify-between gap-4">
-                  <span>
-                    {quantity} × {product.name[locale]}
-                  </span>
-                  <span className="tabular-nums">{price(product.price * quantity)}</span>
-                </div>
-              ))}
-              {showtime.discount && mine.length > 0 && (
-                <p className="text-base font-semibold text-green-600 dark:text-green-400">
-                  {t(`discounts.${showtime.discount.kind}`, { percent: showtime.discount.percent })}
-                </p>
-              )}
-              <Separator />
-              <div className="flex justify-between text-3xl font-bold">
-                <span>{t("seats.total")}</span>
-                <span className="tabular-nums">{price(total)}</span>
+      {canPickSeats ? (
+        // The seats step: the whole screen is the hall, for the customer to tap. No totals.
+        <div className="min-h-0 flex-1">
+          <SeatGrid
+            fill
+            seats={seats}
+            columns={columns}
+            busySeatId={toggleSeat.isPending ? toggleSeat.variables.id : null}
+            onToggle={(seat) => toggleSeat.mutate(seat)}
+          />
+        </div>
+      ) : (
+        // Snacks and payment: the order summary in place of the map.
+        <Card className="mx-auto w-full max-w-2xl">
+          <CardContent className="space-y-4 pt-2 text-2xl">
+            <h2 className="text-lg font-medium text-muted-foreground">{t("kiosk.summary")}</h2>
+            {mine.map((seat) => (
+              <div key={seat.id} className="flex justify-between gap-4">
+                <span>{t("seats.seatLabel", { row: seat.row, number: seat.number })}</span>
+                <span className="tabular-nums">{price(showtime.price)}</span>
               </div>
-              {remaining !== null && (
-                <p className="text-sm tabular-nums text-muted-foreground">
-                  {t("seats.heldFor", { time: formatRemaining(remaining) })}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </div>
+            ))}
+            {showtime.discount && mine.length > 0 && (
+              <p className="text-lg font-semibold text-green-600 dark:text-green-400">
+                {t(`discounts.${showtime.discount.kind}`, { percent: showtime.discount.percent })}
+              </p>
+            )}
+            {lines.map(({ product, quantity }) => (
+              <div key={product.id} className="flex justify-between gap-4">
+                <span>
+                  {quantity} × {product.name[locale]}
+                </span>
+                <span className="tabular-nums">{price(product.price * quantity)}</span>
+              </div>
+            ))}
+            <Separator />
+            <div className="flex justify-between text-4xl font-bold">
+              <span>{t("seats.total")}</span>
+              <span className="tabular-nums">{price(total)}</span>
+            </div>
+            {remaining !== null && (
+              <p className="text-base tabular-nums text-muted-foreground">
+                {t("seats.heldFor", { time: formatRemaining(remaining) })}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -154,7 +174,7 @@ function Receipt({ token }: { token: string }) {
   const { tickets, vouchers, email } = order.data.order;
 
   return (
-    <div className="m-auto grid w-full max-w-4xl animate-in items-center gap-10 duration-500 fade-in zoom-in-95 md:grid-cols-[auto_1fr]">
+    <div className="m-auto grid w-full max-w-4xl items-center gap-10 md:grid-cols-[auto_1fr]">
       {/* Black on white in both themes so phone cameras can read it. */}
       <div className="mx-auto rounded-xl bg-white p-4">
         <QRCodeSVG value={`${SITE_URL}/orders/${token}`} size={280} aria-label={t("kiosk.display.scanForTickets")} />

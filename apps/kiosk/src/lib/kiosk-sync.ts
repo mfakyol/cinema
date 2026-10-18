@@ -14,6 +14,8 @@ export interface KioskState {
   items: [string, number][];
   /** Set once paid: the order behind the receipt and its QR code. */
   orderToken: string | null;
+  /** Staff stepped away; the customer screen hides the sale until they are back. */
+  locked: boolean;
 }
 
 type KioskMessage = { type: "state"; state: KioskState } | { type: "hello" } | { type: "bye" };

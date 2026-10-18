@@ -56,6 +56,10 @@ export const kioskCheckoutSchema = checkoutSchema.omit({ channel: true, email: t
 });
 export type KioskCheckoutInput = z.infer<typeof kioskCheckoutSchema>;
 
+/** A box-office lock PIN: always six digits. */
+export const lockPinSchema = z.object({ pin: z.string().regex(/^\d{6}$/) });
+export type LockPinInput = z.infer<typeof lockPinSchema>;
+
 /** A window of showtimes, e.g. one day at the box office; at most a week long. */
 export const showtimeRangeSchema = z
   .object({ from: z.coerce.date(), to: z.coerce.date() })

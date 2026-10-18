@@ -128,6 +128,21 @@
   body {
     @apply bg-background text-foreground;
   }
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+  body {
+    user-select: none;
+    touch-action: manipulation;
+  }
+  input,
+  textarea {
+    user-select: text;
+  }
+  img {
+    -webkit-user-drag: none;
+  }
   html {
     @apply font-sans;
     /* Native controls and scrollbars match the theme. */

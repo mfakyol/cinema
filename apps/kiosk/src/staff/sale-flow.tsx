@@ -17,7 +17,6 @@ import { toast } from "sonner";
 import { ExtrasStep } from "./extras-step";
 import { PaymentStep, type PaymentDraft } from "./payment-step";
 import { SeatsStep } from "./seats-step";
-import { StepTransition } from "./step-transition";
 import type { Order } from "@sinema/shared";
 
 export type SaleStep = "seats" | "extras" | "payment";
@@ -27,14 +26,12 @@ const STEPS: SaleStep[] = ["seats", "extras", "payment"];
 export function SaleFlow({
   showtimeId,
   step,
-  direction,
   onStep,
   onChangeShowtime,
   onSold,
 }: {
   showtimeId: string;
   step: SaleStep;
-  direction: "forward" | "back";
   onStep: (step: SaleStep) => void;
   onChangeShowtime: () => void;
   onSold: (order: Order) => void;
@@ -78,7 +75,7 @@ export function SaleFlow({
         </Button>
       </div>
 
-      <StepTransition stepKey={step} direction={direction} className="overflow-y-auto p-6">
+      <main className="min-h-0 flex-1 overflow-y-auto p-6">
         {holdLost ? (
           <Alert variant="destructive" className="mx-auto max-w-xl">
             <AlertDescription className="flex items-center justify-between gap-4">
@@ -108,25 +105,27 @@ export function SaleFlow({
             onSettled={refresh}
           />
         )}
-      </StepTransition>
+      </main>
 
-      <footer className="flex shrink-0 items-center gap-4 border-t bg-card px-6 py-3">
-        <Button variant="outline" size="lg" onClick={back}>
-          <ArrowLeft aria-hidden />
-          {t("common.back")}
-        </Button>
-        <Button
-          variant="ghost"
-          size="lg"
-          className="text-muted-foreground"
-          disabled={(mine.length === 0 && cart.quantities.size === 0) || clear.isPending}
-          onClick={() => clear.mutate()}
-        >
-          <Trash2 aria-hidden />
-          <span className="hidden sm:inline">{t("kiosk.clear")}</span>
-        </Button>
+      <footer className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-4 border-t bg-card px-6 py-3">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="lg" onClick={back}>
+            <ArrowLeft aria-hidden />
+            {t("common.back")}
+          </Button>
+          <Button
+            variant="ghost"
+            size="lg"
+            className="text-muted-foreground"
+            disabled={(mine.length === 0 && cart.quantities.size === 0) || clear.isPending}
+            onClick={() => clear.mutate()}
+          >
+            <Trash2 aria-hidden />
+            <span className="hidden sm:inline">{t("kiosk.clear")}</span>
+          </Button>
+        </div>
 
-        <ol className="mx-auto hidden items-center gap-2 md:flex">
+        <ol className="hidden items-center gap-2 md:flex">
           {STEPS.map((name, i) => (
             <li key={name} className="flex items-center gap-2">
               {i > 0 && <span aria-hidden className="h-px w-8 bg-border" />}
@@ -134,7 +133,11 @@ export function SaleFlow({
                 aria-current={name === step ? "step" : undefined}
                 className={cn(
                   "flex items-center gap-2 rounded-full px-3 py-1 text-sm",
-                  name === step ? "bg-primary text-primary-foreground" : i < index ? "text-foreground" : "text-muted-foreground",
+                  name === step
+                    ? "bg-primary text-primary-foreground"
+                    : i < index
+                      ? "text-foreground"
+                      : "text-muted-foreground",
                 )}
               >
                 <span className="font-semibold">{i + 1}</span>
@@ -144,26 +147,27 @@ export function SaleFlow({
           ))}
         </ol>
 
-        <div className="ml-auto text-right">
-          <p className="hidden whitespace-nowrap text-sm text-muted-foreground sm:block">
-            {t("seats.ticketCount", { count: mine.length })} · {t("kiosk.items", { count: lines.length })}
-            {remaining !== null && <> · {t("seats.heldFor", { time: formatRemaining(remaining) })}</>}
-          </p>
-          <p className="whitespace-nowrap text-2xl font-bold tabular-nums">
-            {price(total)}
-          </p>
-        </div>
-        {step !== "payment" && (
+        <div className="col-start-3 flex items-center justify-end gap-4">
+          <div className="text-right">
+            <p className="hidden whitespace-nowrap text-sm text-muted-foreground sm:block">
+              {t("seats.ticketCount", { count: mine.length })} · {t("kiosk.items", { count: lines.length })}
+              {remaining !== null && <> · {t("seats.heldFor", { time: formatRemaining(remaining) })}</>}
+            </p>
+            <p className="whitespace-nowrap text-2xl font-bold tabular-nums">{price(total)}</p>
+          </div>
+          {/* Kept on the payment step too (hidden), so the total stays where it was. */}
           <Button
             size="lg"
-            className="h-12 min-w-40 text-base"
-            disabled={mine.length === 0}
+            className={cn("h-12 min-w-40 text-base", step === "payment" && "invisible")}
+            aria-hidden={step === "payment"}
+            tabIndex={step === "payment" ? -1 : undefined}
+            disabled={mine.length === 0 || step === "payment"}
             onClick={() => onStep(STEPS[index + 1]!)}
           >
             {step === "extras" && cart.quantities.size === 0 ? t("steps.skip") : t("steps.continue")}
             <ArrowRight aria-hidden />
           </Button>
-        )}
+        </div>
       </footer>
     </div>
   );
