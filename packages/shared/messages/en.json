@@ -88,6 +88,11 @@
     "EMAIL_TAKEN": "An account with this email already exists.",
     "VALIDATION": "Please check the highlighted fields.",
     "UNAUTHENTICATED": "Your session expired. Please try again.",
+    "ALREADY_USED": "This ticket has already been used.",
+    "TICKET_CANCELLED": "This ticket was cancelled.",
+    "INVALID_QR": "This is not a valid ticket code.",
+    "NOT_FOUND": "Ticket not found.",
+    "FORBIDDEN": "Your account cannot do this.",
     "generic": "Something went wrong. Please try again."
   },
   "order": {
@@ -112,5 +117,29 @@
     "details": "{movie} · {showtime} · {hall}",
     "showTickets": "Show my tickets",
     "linkHint": "Open this link at the entrance to show your QR codes. Anyone with the link can see the tickets, so keep it to yourself."
+  },
+  "app": {
+    "tabMovies": "Movies",
+    "tabTickets": "Tickets",
+    "tabAccount": "Account",
+    "signedInAs": "Signed in as {name}",
+    "signInToBuy": "Sign in to choose seats and buy tickets.",
+    "signInForTickets": "Sign in to see your tickets.",
+    "ticketsSentTo": "Tickets are also emailed to {email}."
+  },
+  "staff": {
+    "title": "Ticket check",
+    "signInTitle": "Staff sign in",
+    "signInSubtitle": "Use your cinema staff account.",
+    "notStaff": "This app is for cinema staff. Sign in with a staff account.",
+    "cameraPermission": "Allow camera access to scan tickets at the door.",
+    "allowCamera": "Allow camera",
+    "pointCamera": "Point the camera at a ticket's QR code.",
+    "checking": "Checking…",
+    "admitted": "Admitted",
+    "rejected": "Not admitted",
+    "scanNext": "Scan next ticket",
+    "manualEntry": "Ticket code or link",
+    "check": "Check ticket"
   }
 }

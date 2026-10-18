@@ -7,6 +7,7 @@ A cinema ticketing system that sells tickets from web, mobile and a kiosk throug
 - Node.js 22+
 - pnpm (ships with `corepack enable`)
 - Docker (for PostgreSQL)
+- Expo Go on a phone, for the mobile apps
 
 ## Setup
 
@@ -23,6 +24,16 @@ pnpm dev:web
 The API serves `http://localhost:4000/api/health` and the website opens at `http://localhost:3000`.
 
 The website picks English or Turkish from the browser's language and light or dark from the operating system theme. Set `NEXT_PUBLIC_API_URL` in `apps/web/.env.local` when the API is not on `http://localhost:4000`, and `NEXT_PUBLIC_SITE_URL` to the website's public address so ticket QR codes link there; it must match the API's `WEB_URL`.
+
+## Mobile apps
+
+There are two Expo apps: the customer app (`apps/mobile`) and the staff app for checking tickets at the doors (`apps/staff`). Try them on a phone with [Expo Go](https://expo.dev/go):
+
+1. Connect the phone to the same Wi-Fi as the computer, and allow Node.js through the computer's firewall when asked.
+2. Start the API (`pnpm dev:api`), then `pnpm dev:mobile` or `pnpm dev:staff`.
+3. Scan the QR code in the terminal with the phone's camera (iOS) or the Expo Go app (Android).
+
+The apps reach the API on port 4000 of the computer that serves them. Set `EXPO_PUBLIC_API_URL` (and `EXPO_PUBLIC_SITE_URL` for ticket links) in the app's `.env.local` to use another server. The staff app accepts staff and admin accounts only; with the seed data, use `staff@sinema.test` / `demo1234`.
 
 ## Ticket emails
 

@@ -88,6 +88,11 @@
     "EMAIL_TAKEN": "Bu e-postayla bir hesap zaten var.",
     "VALIDATION": "Lütfen işaretli alanları kontrol et.",
     "UNAUTHENTICATED": "Oturumun sona erdi. Lütfen tekrar dene.",
+    "ALREADY_USED": "Bu bilet zaten kullanılmış.",
+    "TICKET_CANCELLED": "Bu bilet iptal edilmiş.",
+    "INVALID_QR": "Bu geçerli bir bilet kodu değil.",
+    "NOT_FOUND": "Bilet bulunamadı.",
+    "FORBIDDEN": "Hesabın bu işlemi yapamaz.",
     "generic": "Bir sorun oluştu. Lütfen tekrar dene."
   },
   "order": {
@@ -112,5 +117,29 @@
     "details": "{movie} · {showtime} · {hall}",
     "showTickets": "Biletlerimi göster",
     "linkHint": "QR kodlarını göstermek için bu bağlantıyı girişte aç. Bağlantıya sahip olan herkes biletleri görebilir, kimseyle paylaşma."
+  },
+  "app": {
+    "tabMovies": "Filmler",
+    "tabTickets": "Biletler",
+    "tabAccount": "Hesap",
+    "signedInAs": "{name} olarak giriş yapıldı",
+    "signInToBuy": "Koltuk seçmek ve bilet almak için giriş yap.",
+    "signInForTickets": "Biletlerini görmek için giriş yap.",
+    "ticketsSentTo": "Biletler ayrıca {email} adresine gönderildi."
+  },
+  "staff": {
+    "title": "Bilet kontrolü",
+    "signInTitle": "Görevli girişi",
+    "signInSubtitle": "Sinema görevli hesabınla giriş yap.",
+    "notStaff": "Bu uygulama sinema görevlileri içindir. Görevli hesabıyla giriş yap.",
+    "cameraPermission": "Kapıda bilet okutmak için kameraya izin ver.",
+    "allowCamera": "Kameraya izin ver",
+    "pointCamera": "Kamerayı biletin QR koduna tut.",
+    "checking": "Kontrol ediliyor…",
+    "admitted": "Giriş onaylandı",
+    "rejected": "Giriş reddedildi",
+    "scanNext": "Sıradaki bileti okut",
+    "manualEntry": "Bilet kodu veya bağlantısı",
+    "check": "Bileti kontrol et"
   }
 }

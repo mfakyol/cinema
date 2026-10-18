@@ -2,7 +2,7 @@
 
 ## Summary
 
-A cinema ticketing system that sells tickets from web, mobile and a kiosk at the same time, all backed by one API. Wherever a seat is sold, every other screen shows it as taken immediately.
+A cinema ticketing system that sells tickets from the web, a customer app and a box-office kiosk at the same time, with a staff app at the doors, all backed by one API. Wherever a seat is sold, every other screen shows it as taken immediately.
 
 What makes it stand out as a portfolio project:
 
@@ -13,15 +13,15 @@ What makes it stand out as a portfolio project:
 
 ## Roles and clients
 
-There are three roles: customer, staff and admin. All three clients can sell tickets; administration lives only on the web.
+There are three roles: customer, staff and admin. The web, the customer app and the kiosk sell tickets; the staff app checks them at the doors; administration lives only on the web.
 
 | Client | Used by | What it does |
 | --- | --- | --- |
 | Web – customer site | Customer (guest or signed in) | Picks a movie, showtime and seats, pays, gets a QR ticket, sees their tickets; no account needed |
 | Web – `/admin` panel | Admin | Adds movies, halls, seat layouts and showtimes; sees sales and occupancy reports; manages staff accounts |
-| Mobile (Expo) | Customer (guest or signed in) | Same purchase flow as the web + my tickets |
-| Mobile (Expo) – staff mode | Staff | Scans QR codes at the hall entrance and marks tickets as used |
-| Kiosk (Electron) | Customer (guest) | Buys a ticket quickly on a lobby touchscreen without signing in |
+| Customer app (Expo) | Customer (signed in) | Same purchase flow as the web + my tickets; an account is required |
+| Staff app (Expo) | Staff | Signs in and scans QR codes at the hall entrance, which marks tickets as used |
+| Kiosk (Electron) | Staff + customer | A two-screen box office: staff sell tickets on one screen, the second screen faces the customer and shows the seats, the total and the QR codes |
 
 ## Stack
 
@@ -44,23 +44,25 @@ TypeScript everywhere; the backend is Node + Express + PostgreSQL.
 
 ## Monorepo layout
 
-Four apps and one shared package live in one repo.
+Five apps and two shared packages live in one repo.
 
 ```
 sinema/
 ├── apps/
 │   ├── api/        Express + Prisma + Socket.io
 │   ├── web/        Next.js (customer site + /admin)
-│   ├── mobile/     Expo (React Native)
+│   ├── mobile/     Expo customer app
+│   ├── staff/      Expo staff app (QR scanning at the doors)
 │   └── kiosk/      Electron + React (Vite)
 ├── packages/
-│   └── shared/     shared types, Zod schemas, constants
+│   ├── shared/     shared types, Zod schemas, constants, translations
+│   └── native/     code shared by the two Expo apps: API client, session, i18n, theme
 ├── docker-compose.yml
 ├── package.json
 └── pnpm-workspace.yaml
 ```
 
-Note: for Expo to see `packages/shared`, `metro.config.js` needs the monorepo settings (watchFolders, nodeModulesPaths) from the start.
+Note: from Expo SDK 52, Metro is configured for monorepos automatically, and pnpm's isolated installs work from SDK 54.
 
 ## Data model
 
@@ -142,7 +144,7 @@ These are the defaults; changes are recorded here.
 | Real-time | Yes, Socket.io |
 | Kiosk ticket | QR on screen first, printer later |
 | Ticket delivery | Email only, sent by the API through EmailJS's REST API (private key stays on the server); logged instead of sent when EmailJS is not configured |
-| Accounts | Optional everywhere: web and mobile customers can buy as guests (their tickets stay on that device) or sign in; the kiosk is always guest |
+| Accounts | Web: optional, guests buy with an email. Customer app: required. Staff app: staff and admin accounts only. Kiosk: staff sign in; customers need no account |
 | Movie data | Fixed catalog in the seed; the same daily showtime schedule repeats. The seed covers 3 days for now; a full schedule through 2030 comes later |
 | Content language | English throughout: UI, seed data, docs |
 
@@ -153,8 +155,8 @@ Every phase ends with something that runs and can be demoed.
 1. **Foundation** – monorepo skeleton, PostgreSQL in Docker, Prisma schema, seed data
 2. **API** – auth, movie/showtime endpoints, seat locking + checkout, QR verification, tests
 3. **Web** – movie list → showtime → seat picker → payment → my tickets
-4. **Admin** – movie, hall and showtime management and the sales report
-5. **Release (MVP)** – API + web live, demo accounts, README
-6. **Mobile** – customer flow + staff QR scanning
-7. **Kiosk** – touch flow, idle timeout, QR on screen
+4. **Mobile** – customer app (purchase flow) and staff app (QR scanning)
+5. **Kiosk** – two-screen box office: staff screen to sell, customer-facing screen with seats, total and QR codes
+6. **Admin** – adding movies, halls and showtimes, and the sales report; the seeded catalog covers demos until then
+7. **Release (MVP)** – API + web live, demo accounts, README
 8. **Polish** – screen recording, architecture diagram, a "how I solved double booking" write-up
