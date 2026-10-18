@@ -7,6 +7,7 @@ import { authRouter } from "./routes/auth.js";
 import { checkoutRouter } from "./routes/checkout.js";
 import { locksRouter } from "./routes/locks.js";
 import { moviesRouter } from "./routes/movies.js";
+import { ordersRouter } from "./routes/orders.js";
 import { showtimesRouter } from "./routes/showtimes.js";
 import { meRouter, ticketsRouter } from "./routes/tickets.js";
 
@@ -43,6 +44,7 @@ export function createApp() {
   api.use("/showtimes", showtimesRouter);
   api.use("/locks", locksRouter);
   api.use("/checkout", checkoutRouter);
+  api.use("/orders", ordersRouter);
   api.use("/me", meRouter);
   api.use("/tickets", ticketsRouter);
   api.use((_req, _res) => {

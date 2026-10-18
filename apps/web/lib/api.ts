@@ -103,5 +103,17 @@ export interface Order {
   id: string;
   status: "PENDING" | "PAID" | "FAILED";
   amount: number;
+  contactEmail: string;
+  /** Opens /orders/<accessToken>, the page linked from the confirmation email. */
+  accessToken: string;
   tickets: { id: string; seatId: string; qrToken: string }[];
+}
+
+/** The public view of an order behind its emailed link. */
+export interface OrderPage {
+  id: string;
+  amount: number;
+  /** Partly hidden, e.g. "ja***@example.com". */
+  email: string;
+  tickets: Ticket[];
 }

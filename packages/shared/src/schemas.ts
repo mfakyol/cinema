@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MAX_LOCKS_PER_HOLDER } from "./constants.js";
+import { LOCALES } from "./i18n.js";
 
 export const registerSchema = z.object({
   email: z.email().toLowerCase(),
@@ -31,6 +32,10 @@ export const checkoutSchema = z.object({
   idempotencyKey: z.string().min(8).max(100),
   /** Ignored for guests, whose channel comes from their guest session. */
   channel: z.enum(["WEB", "MOBILE"]).default("WEB"),
+  /** The tickets and the order link are sent here; guests have no account to hold them. */
+  email: z.email().toLowerCase(),
+  /** Language of the confirmation email. */
+  locale: z.enum(LOCALES).default("en"),
   /** Lets demos and tests trigger a declined payment with the fake provider. */
   simulate: z.enum(["success", "decline"]).default("success"),
 });

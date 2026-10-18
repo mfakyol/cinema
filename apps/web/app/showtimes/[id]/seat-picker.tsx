@@ -1,15 +1,18 @@
 "use client";
 
+import { checkoutSchema } from "@sinema/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, CircleCheck, Clock, Radio } from "lucide-react";
 import Link from "next/link";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import { LoadError } from "@/components/load-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiFetch, type Order, postJson, type SeatMap, type SeatMapSeat } from "@/lib/api";
@@ -26,7 +29,12 @@ export function SeatPicker({ id }: { id: string }) {
   const errorMessage = useErrorMessage();
   const session = useSession();
   const queryClient = useQueryClient();
+  const locale = useLocale();
   const [purchased, setPurchased] = useState<Order | null>(null);
+  // Starts as the signed-in user's address; guests type theirs.
+  const [emailInput, setEmailInput] = useState<string | null>(null);
+  const email = emailInput ?? session?.user?.email ?? "";
+  const emailValid = checkoutSchema.shape.email.safeParse(email).success;
 
   // Keyed by session so a new guest session or a sign-in refetches with the right "mine" flags.
   const queryKey = ["seats", id, session?.token ?? "anonymous"] as const;
@@ -54,6 +62,8 @@ export function SeatPicker({ id }: { id: string }) {
         showtimeId: id,
         idempotencyKey: crypto.randomUUID(),
         channel: "WEB",
+        email,
+        locale,
         simulate,
       }),
     onSuccess: ({ order }) => {
@@ -136,9 +146,12 @@ export function SeatPicker({ id }: { id: string }) {
                   {t("seats.ticketCount", { count: purchased.tickets.length })} · {price(purchased.amount)}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  {t("order.sentTo", { email: purchased.contactEmail })}
+                </p>
                 <Button className="w-full" asChild>
-                  <Link href="/tickets">{t("seats.viewTickets")}</Link>
+                  <Link href={`/orders/${purchased.accessToken}`}>{t("seats.viewTickets")}</Link>
                 </Button>
               </CardContent>
             </>
@@ -169,10 +182,26 @@ export function SeatPicker({ id }: { id: string }) {
                   <span>{t("seats.total")}</span>
                   <span>{price(showtime.price * mine.length)}</span>
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="checkout-email">{t("order.email")}</Label>
+                  <Input
+                    id="checkout-email"
+                    type="email"
+                    autoComplete="email"
+                    inputMode="email"
+                    value={email}
+                    onChange={(event) => setEmailInput(event.target.value)}
+                    aria-describedby="checkout-email-hint"
+                    aria-invalid={(email !== "" && !emailValid) || undefined}
+                  />
+                  <p id="checkout-email-hint" className="text-xs text-muted-foreground">
+                    {t("order.emailHint")}
+                  </p>
+                </div>
                 <Button
                   className="w-full"
                   size="lg"
-                  disabled={mine.length === 0 || pay.isPending}
+                  disabled={mine.length === 0 || !emailValid || pay.isPending}
                   onClick={() => pay.mutate("success")}
                 >
                   {t("seats.pay", { amount: price(showtime.price * mine.length) })}
@@ -181,7 +210,7 @@ export function SeatPicker({ id }: { id: string }) {
                   variant="link"
                   size="sm"
                   className="w-full text-muted-foreground"
-                  disabled={mine.length === 0 || pay.isPending}
+                  disabled={mine.length === 0 || !emailValid || pay.isPending}
                   onClick={() => pay.mutate("decline")}
                 >
                   {t("seats.payDeclined")}

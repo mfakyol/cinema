@@ -127,6 +127,10 @@ model Order {
   provider       String
   providerRef    String?
   idempotencyKey String      @unique
+  /// Where the tickets and the order link are emailed.
+  contactEmail   String
+  /// Unguessable token in the order link, which shows the QR codes without signing in.
+  accessToken    String      @unique
   createdAt      DateTime    @default(now())
 
   user    User?    @relation(fields: [userId], references: [id])

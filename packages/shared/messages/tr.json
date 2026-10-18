@@ -76,5 +76,19 @@
     "VALIDATION": "Lütfen işaretli alanları kontrol et.",
     "UNAUTHENTICATED": "Oturumun sona erdi. Lütfen tekrar dene.",
     "generic": "Bir sorun oluştu. Lütfen tekrar dene."
+  },
+  "order": {
+    "title": "Siparişin",
+    "sentTo": "Biletler {email} adresine gönderildi.",
+    "notFound": "Bu sipariş bağlantısı geçerli değil.",
+    "email": "Biletlerin için e-posta",
+    "emailHint": "QR kodlarını ve onları gösteren bağlantıyı buraya göndeririz."
+  },
+  "email": {
+    "subject": "{movie} biletlerin",
+    "greeting": "Satın aldığın için teşekkürler!",
+    "details": "{movie} · {showtime} · {hall}",
+    "showTickets": "Biletlerimi göster",
+    "linkHint": "QR kodlarını göstermek için bu bağlantıyı girişte aç. Bağlantıya sahip olan herkes biletleri görebilir, kimseyle paylaşma."
   }
 }

@@ -69,5 +69,5 @@ export function checkout(
   return api()
     .post("/api/checkout")
     .set(bearer(token))
-    .send({ showtimeId, idempotencyKey: randomUUID(), ...extra });
+    .send({ showtimeId, idempotencyKey: randomUUID(), email: "buyer@test.local", ...extra });
 }

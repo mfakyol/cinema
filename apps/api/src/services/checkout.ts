@@ -1,8 +1,11 @@
+import { randomBytes } from "node:crypto";
 import { type CheckoutInput, SocketEvent } from "@sinema/shared";
 import { isUniqueViolation, prisma } from "../db.js";
 import { HttpError } from "../lib/http-error.js";
 import type { AuthClaims } from "../lib/jwt.js";
 import { createQrToken } from "../lib/qr.js";
+import { mailer } from "../notifications/index.js";
+import { buildTicketEmail } from "../notifications/ticket-email.js";
 import { paymentProvider } from "../payments/index.js";
 import { emitToShowtime } from "../realtime.js";
 
@@ -60,6 +63,8 @@ export async function checkout(auth: AuthClaims, input: CheckoutInput) {
         amount,
         provider: paymentProvider.name,
         idempotencyKey: input.idempotencyKey,
+        contactEmail: input.email,
+        accessToken: randomBytes(24).toString("base64url"),
       },
     });
   } catch (error) {
@@ -117,5 +122,12 @@ export async function checkout(auth: AuthClaims, input: CheckoutInput) {
   emitToShowtime(input.showtimeId, SocketEvent.SEAT_SOLD, {
     seatIds: locks.map((lock) => lock.seatId),
   });
+
+  // The sale stands even if the email fails; the order link on the confirmation screen still works.
+  try {
+    await mailer.send(await buildTicketEmail(order.id, input.locale));
+  } catch (error) {
+    console.error(`Ticket email for order ${order.id} failed`, error);
+  }
   return loadOrder(order.id);
 }

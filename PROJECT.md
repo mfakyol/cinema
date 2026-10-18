@@ -74,7 +74,7 @@ Eight tables: user, movie, hall, seat, showtime, seat lock, order and ticket.
 | Seat | id, hallId, row (A, B…), number, type (STANDARD / VIP) | Unique: hallId + row + number |
 | Showtime | id, movieId, hallId, startsAt, price | No overlapping showtimes in the same hall |
 | SeatLock | id, showtimeId, seatId, holderId, expiresAt | Unique: showtimeId + seatId; an expired lock is void |
-| Order | id, holderId, userId?, amount, status (PENDING / PAID / FAILED), provider, providerRef?, idempotencyKey, createdAt | Groups the tickets bought in one payment; idempotencyKey is unique |
+| Order | id, holderId, userId?, amount, status (PENDING / PAID / FAILED), provider, providerRef?, idempotencyKey, contactEmail, accessToken, createdAt | Groups the tickets bought in one payment; idempotencyKey and accessToken are unique |
 | Ticket | id, orderId, showtimeId, seatId, userId?, status (PAID / USED / CANCELLED), qrToken, channel (WEB / MOBILE / KIOSK), createdAt | Unique: showtimeId + seatId (among non-cancelled tickets) |
 
 Money is stored as integer cents.
@@ -87,9 +87,10 @@ A selected seat is locked for 7 minutes; if payment does not finish in that time
 2. The API returns the showtime's sold and locked seats.
 3. The customer picks seats; the API creates `SeatLock` rows in a transaction. The unique constraint rejects a second holder.
 4. Socket.io broadcasts "seat locked" to every client.
-5. When the (simulated) payment completes, a transaction creates the `Ticket` rows and a PAID `Order`, deletes the locks and issues QR tokens. Payment goes through a `PaymentProvider` interface; the first implementation is `FakeProvider`.
-6. If there is no payment within 7 minutes, the lock expires; the seat becomes free again and that is broadcast.
-7. At the entrance, staff scan the QR code; a `PAID` ticket becomes `USED`, anything else is rejected.
+5. The customer enters an email; no account is needed. When the (simulated) payment completes, a transaction creates the `Ticket` rows and a PAID `Order`, deletes the locks and issues QR tokens. Payment goes through a `PaymentProvider` interface; the first implementation is `FakeProvider`.
+6. The API emails the QR codes and a link to `/orders/<accessToken>`, a page that shows them on any device without signing in. A failed email does not undo the sale.
+7. If there is no payment within 7 minutes, the lock expires; the seat becomes free again and that is broadcast.
+8. At the entrance, staff scan the QR code; a `PAID` ticket becomes `USED`, anything else is rejected.
 
 Rules:
 
@@ -114,6 +115,8 @@ REST endpoints live under `/api`; real-time events go to per-showtime rooms.
 | DELETE | /locks/:id | Release a lock | Lock holder |
 | POST | /checkout | Simulate payment, create tickets (idempotent per key) | Customer, guest |
 | GET | /me/tickets | Tickets bought by this user or guest session | Customer, guest |
+| GET | /orders/:accessToken | An order's tickets, for the emailed link | Link holder |
+| GET | /tickets/:qrToken/qr.png | A ticket's QR code as an image, for emails | Code holder |
 | POST | /tickets/verify | Check a QR code, mark the ticket used | Staff |
 | CRUD | /admin/movies, /admin/halls, /admin/showtimes | Administration | Admin |
 | GET | /admin/reports/sales | Sales and occupancy report | Admin |
@@ -136,6 +139,7 @@ These are the defaults; changes are recorded here.
 | Payment | Simulated first (`FakeProvider`) behind a `PaymentProvider` interface; a real provider's test mode (iyzico or Stripe) after the MVP |
 | Real-time | Yes, Socket.io |
 | Kiosk ticket | QR on screen first, printer later |
+| Ticket delivery | Email only, sent by the API through EmailJS's REST API (private key stays on the server); logged instead of sent when EmailJS is not configured |
 | Accounts | Optional everywhere: web and mobile customers can buy as guests (their tickets stay on that device) or sign in; the kiosk is always guest |
 | Movie data | Fixed catalog in the seed; the same daily showtime schedule repeats. The seed covers 3 days for now; a full schedule through 2030 comes later |
 | Content language | English throughout: UI, seed data, docs |

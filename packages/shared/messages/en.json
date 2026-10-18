@@ -76,5 +76,19 @@
     "VALIDATION": "Please check the highlighted fields.",
     "UNAUTHENTICATED": "Your session expired. Please try again.",
     "generic": "Something went wrong. Please try again."
+  },
+  "order": {
+    "title": "Your order",
+    "sentTo": "Tickets were sent to {email}.",
+    "notFound": "This order link is not valid.",
+    "email": "Email for your tickets",
+    "emailHint": "We send your QR codes and a link to them here."
+  },
+  "email": {
+    "subject": "Your tickets for {movie}",
+    "greeting": "Thanks for your purchase!",
+    "details": "{movie} · {showtime} · {hall}",
+    "showTickets": "Show my tickets",
+    "linkHint": "Open this link at the entrance to show your QR codes. Anyone with the link can see the tickets, so keep it to yourself."
   }
 }
