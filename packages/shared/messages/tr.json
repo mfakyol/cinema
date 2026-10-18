@@ -211,5 +211,38 @@
   "discounts": {
     "PEOPLES_DAY": "Halk Günü %{percent} indirim",
     "DAYTIME": "Gündüz %{percent} indirim"
+  },
+  "kiosk": {
+    "title": "Gişe",
+    "signInTitle": "Gişe girişi",
+    "signInSubtitle": "Sinema personel hesabınla giriş yap.",
+    "notStaff": "Gişe sinema personeli içindir. Personel hesabıyla giriş yap.",
+    "openDisplay": "Müşteri ekranını aç",
+    "today": "Bugün",
+    "pickShowtime": "Satışa başlamak için bir seans seç.",
+    "noShowtimes": "Bu gün için başka seans yok.",
+    "seatsHint": "Müşteri için ayırmak istediğin koltuklara dokun.",
+    "basket": "Sepet",
+    "emptyBasket": "Henüz ayrılmış koltuk yok.",
+    "email": "Müşterinin e-postası (isteğe bağlı)",
+    "emailHint": "Girilirse biletler e-postayla da gönderilir. Müşteri ekranında her zaman görünür.",
+    "payment": "Ödeme",
+    "card": "Kart",
+    "cash": "Nakit",
+    "charge": "{amount} tahsil et",
+    "clear": "Satışı temizle",
+    "sold": "Satış tamamlandı",
+    "soldDetail": "{tickets} · {amount} · {method}",
+    "newSale": "Yeni satış",
+    "displayLinked": "Müşteri ekranı bu satışı takip ediyor.",
+    "display": {
+      "title": "Müşteri ekranı",
+      "welcome": "Sinema'ya hoş geldin",
+      "welcomeSubtitle": "Seçilen koltuklar ve sepet burada görünür.",
+      "yourShowtime": "Seansın",
+      "thanks": "İyi seyirler!",
+      "scanForTickets": "Biletlerini ve büfe kodlarını telefonuna almak için okut.",
+      "emailed": "Biletler ayrıca {email} adresine gönderildi."
+    }
   }
 }

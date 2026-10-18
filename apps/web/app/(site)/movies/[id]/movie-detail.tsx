@@ -1,10 +1,11 @@
 "use client";
 
-import { CINEMA_TIME_ZONE, groupBy, SHOW_FORMATS, type ShowFormat } from "@sinema/shared";
+import { CINEMA_TIME_ZONE, groupBy, SHOW_FORMATS } from "@sinema/shared";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useNow, useTranslations } from "next-intl";
+import { FormatBadge } from "@/components/format-badge";
 import { LoadError } from "@/components/load-error";
 import { MoviePoster } from "@/components/movie-poster";
 import { Badge } from "@/components/ui/badge";
@@ -119,11 +120,6 @@ export function MovieDetail({ id }: { id: string }) {
 }
 
 /** "2D" quiet, premium formats (3D, IMAX) in the brand colour. */
-export function FormatBadge({ format }: { format: ShowFormat }) {
-  const t = useTranslations("format");
-  return <Badge variant={format === "TWO_D" ? "secondary" : "default"}>{t(format)}</Badge>;
-}
-
 function ShowtimeButton({ showtime }: { showtime: Showtime }) {
   const t = useTranslations("discounts");
   const format = useFormatter();

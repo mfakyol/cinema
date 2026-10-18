@@ -51,6 +51,8 @@ export async function buildTicketEmail(orderId: string, locale: Locale): Promise
       },
     },
   });
+  const { contactEmail } = order;
+  if (!contactEmail) throw new Error(`Order ${orderId} has no email address`);
   const t = messages[locale];
   const { showtime } = order.tickets[0]!;
   const startsAt = new Intl.DateTimeFormat(locale, {
@@ -77,7 +79,7 @@ export async function buildTicketEmail(orderId: string, locale: Locale): Promise
     : ticketsHtml;
 
   return {
-    to: order.contactEmail,
+    to: contactEmail,
     subject: fill(t.email.subject, { movie: showtime.movie.title }),
     params: {
       greeting: t.email.greeting,

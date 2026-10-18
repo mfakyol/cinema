@@ -37,7 +37,7 @@ export async function getOrderByAccessToken(accessToken: string) {
     id: order.id,
     amount: order.amount,
     createdAt: order.createdAt,
-    email: maskEmail(order.contactEmail),
+    email: order.contactEmail ? maskEmail(order.contactEmail) : null,
     tickets: order.tickets,
     vouchers: await listOrderVouchers(order.id),
   };

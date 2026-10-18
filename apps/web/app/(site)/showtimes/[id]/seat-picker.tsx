@@ -14,9 +14,9 @@ import { apiFetch, postJson, type SeatMapSeat } from "@/lib/api";
 import { useErrorMessage, usePrice } from "@/lib/format";
 import { ensureSessionToken } from "@/lib/session";
 import { PurchaseSteps } from "./purchase-steps";
-import { SeatGrid } from "./seat-grid";
-import { ShowtimeHeader } from "./showtime-header";
-import { useSeatHold } from "./use-seat-hold";
+import { SeatGrid } from "@/components/seat-grid";
+import { ShowtimeHeader } from "@/components/showtime-header";
+import { useSeatHold } from "@/lib/use-seat-hold";
 
 /** Step 1 of 3: pick seats on the live map. */
 export function SeatPicker({ id }: { id: string }) {

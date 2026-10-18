@@ -39,7 +39,7 @@ export function OrderTickets({ token }: { token: string }) {
     <div className="space-y-6">
       <div className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight">{t("order.title")}</h1>
-        {order.data && (
+        {order.data?.order.email && (
           <p className="text-muted-foreground">{t("order.sentTo", { email: order.data.order.email })}</p>
         )}
       </div>

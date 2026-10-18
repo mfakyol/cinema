@@ -15,13 +15,13 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { type Order, postJson } from "@/lib/api";
+import { productsQuery } from "@/lib/basket";
 import { useCart } from "@/lib/cart";
 import { useErrorMessage, usePrice } from "@/lib/format";
 import { useSession } from "@/lib/session";
-import { productsQuery } from "../extras/extras-step";
 import { PurchaseSteps } from "../purchase-steps";
-import { ShowtimeHeader } from "../showtime-header";
-import { useSeatHold } from "../use-seat-hold";
+import { ShowtimeHeader } from "@/components/showtime-header";
+import { useSeatHold } from "@/lib/use-seat-hold";
 
 /** Step 3 of 3: the basket (tickets and items), the email for the tickets, and payment. */
 export function CheckoutStep({ id }: { id: string }) {
@@ -79,7 +79,7 @@ export function CheckoutStep({ id }: { id: string }) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">{t("order.sentTo", { email: purchased.contactEmail })}</p>
+          <p className="text-sm text-muted-foreground">{t("order.sentTo", { email: purchased.contactEmail ?? email })}</p>
           <Button className="w-full" asChild>
             <Link href={`/orders/${purchased.accessToken}`}>{t("seats.viewTickets")}</Link>
           </Button>

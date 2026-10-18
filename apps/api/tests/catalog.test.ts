@@ -46,4 +46,18 @@ describe("movies and showtimes", () => {
     const res = await api().get("/api/nope").expect(404);
     expect(res.body.error.code).toBe("NOT_FOUND");
   });
+
+  it("lists every movie's showtimes in a time window", async () => {
+    const { movie, hall, showtime } = await createFixture();
+    const later = new Date(showtime.startsAt.getTime() + 3 * 60 * 60 * 1000);
+    await prisma.showtime.create({ data: { movieId: movie.id, hallId: hall.id, startsAt: later, price: 1000 } });
+    const from = new Date(showtime.startsAt.getTime() - 60_000).toISOString();
+    const to = new Date(showtime.startsAt.getTime() + 60 * 60 * 1000).toISOString();
+
+    const res = await api().get("/api/showtimes").query({ from, to }).expect(200);
+    expect(res.body.showtimes).toEqual([
+      expect.objectContaining({ id: showtime.id, movie: expect.objectContaining({ title: "Test Movie" }) }),
+    ]);
+    await api().get("/api/showtimes").query({ from: to, to: from }).expect(400);
+  });
 });

@@ -75,7 +75,7 @@ export default function CheckoutStep() {
           <Text variant="muted">
             {t("seats.ticketCount", { count: purchased.tickets.length })} · {price(purchased.amount)}
           </Text>
-          <Text variant="small">{t("app.ticketsSentTo", { email: purchased.contactEmail })}</Text>
+          <Text variant="small">{t("app.ticketsSentTo", { email: purchased.contactEmail ?? session!.user.email })}</Text>
           <Button title={t("seats.viewTickets")} onPress={() => router.dismissTo("/tickets")} />
         </Card>
       </Screen>

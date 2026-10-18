@@ -1,57 +1,26 @@
 "use client";
 
-import { groupBy, MAX_ITEM_QUANTITY, type ProductCategory } from "@sinema/shared";
+import { groupBy, type ProductCategory } from "@sinema/shared";
 import { useQuery } from "@tanstack/react-query";
-import { Minus, Plus } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { LoadError } from "@/components/load-error";
+import { QuantityStepper } from "@/components/quantity-stepper";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiFetch, type Product } from "@/lib/api";
+import { productsQuery } from "@/lib/basket";
 import { useCart } from "@/lib/cart";
 import { usePrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PurchaseSteps } from "../purchase-steps";
-import { ShowtimeHeader } from "../showtime-header";
-import { useSeatHold } from "../use-seat-hold";
+import { ShowtimeHeader } from "@/components/showtime-header";
+import { useSeatHold } from "@/lib/use-seat-hold";
 
 /** Glasses lead on 3D showings; the API only lists them for those. */
 const CATEGORY_ORDER: ProductCategory[] = ["GLASSES", "COMBO", "SNACK", "DRINK"];
-
-export const productsQuery = (id: string) => ({
-  queryKey: ["products", id],
-  queryFn: () => apiFetch<{ products: Product[] }>(`/products?showtimeId=${id}`),
-});
-
-function QuantityStepper({ name, quantity, onChange }: { name: string; quantity: number; onChange: (n: number) => void }) {
-  const t = useTranslations("extras");
-  return (
-    <div className="flex items-center gap-2">
-      {quantity > 0 && (
-        <>
-          <Button variant="outline" size="icon" aria-label={t("remove", { name })} onClick={() => onChange(quantity - 1)}>
-            <Minus aria-hidden />
-          </Button>
-          <span className="w-5 text-center font-semibold" aria-label={t("inCart", { count: quantity })}>
-            {quantity}
-          </span>
-        </>
-      )}
-      <Button
-        size="icon"
-        aria-label={t("add", { name })}
-        disabled={quantity >= MAX_ITEM_QUANTITY}
-        onClick={() => onChange(quantity + 1)}
-      >
-        <Plus aria-hidden />
-      </Button>
-    </div>
-  );
-}
 
 /** Step 2 of 3: snacks, drinks and, for 3D, glasses. Optional. */
 export function ExtrasStep({ id }: { id: string }) {

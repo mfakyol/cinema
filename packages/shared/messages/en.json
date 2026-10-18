@@ -211,5 +211,38 @@
   "discounts": {
     "PEOPLES_DAY": "People's day −{percent}%",
     "DAYTIME": "Daytime −{percent}%"
+  },
+  "kiosk": {
+    "title": "Box office",
+    "signInTitle": "Box office sign in",
+    "signInSubtitle": "Use your cinema staff account.",
+    "notStaff": "The box office is for cinema staff. Sign in with a staff account.",
+    "openDisplay": "Open customer screen",
+    "today": "Today",
+    "pickShowtime": "Pick a showtime to start a sale.",
+    "noShowtimes": "No more showtimes on this day.",
+    "seatsHint": "Tap seats to hold them for the customer.",
+    "basket": "Basket",
+    "emptyBasket": "No seats held yet.",
+    "email": "Customer email (optional)",
+    "emailHint": "If given, the tickets are emailed too. They always appear on the customer screen.",
+    "payment": "Payment",
+    "card": "Card",
+    "cash": "Cash",
+    "charge": "Take {amount}",
+    "clear": "Clear sale",
+    "sold": "Sale complete",
+    "soldDetail": "{tickets} · {amount} · {method}",
+    "newSale": "New sale",
+    "displayLinked": "Customer screen follows this sale.",
+    "display": {
+      "title": "Customer screen",
+      "welcome": "Welcome to Sinema",
+      "welcomeSubtitle": "Your seats and basket appear here as they are picked.",
+      "yourShowtime": "Your showtime",
+      "thanks": "Enjoy the film!",
+      "scanForTickets": "Scan to get your tickets and snack codes on your phone.",
+      "emailed": "Tickets were also emailed to {email}."
+    }
   }
 }

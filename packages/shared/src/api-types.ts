@@ -25,6 +25,11 @@ export interface Showtime {
   hall: { id: string; name: string };
 }
 
+/** A showtime with its movie, as the box office lists a whole day. */
+export interface ScheduledShowtime extends Showtime {
+  movie: Pick<Movie, "id" | "title" | "durationMin" | "genre" | "posterUrl">;
+}
+
 export interface SeatMapSeat {
   id: string;
   row: string;
@@ -115,7 +120,8 @@ export interface Order {
   id: string;
   status: "PENDING" | "PAID" | "FAILED";
   amount: number;
-  contactEmail: string;
+  contactEmail: string | null;
+  paymentMethod: "CARD" | "CASH";
   /** Opens /orders/<accessToken>, the page linked from the confirmation email. */
   accessToken: string;
   tickets: { id: string; seatId: string; qrToken: string }[];
@@ -126,8 +132,8 @@ export interface Order {
 export interface OrderPage {
   id: string;
   amount: number;
-  /** Partly hidden, e.g. "ja***@example.com". */
-  email: string;
+  /** Partly hidden, e.g. "ja***@example.com"; null for a box-office sale without one. */
+  email: string | null;
   tickets: Ticket[];
   vouchers: ConcessionVoucher[];
 }

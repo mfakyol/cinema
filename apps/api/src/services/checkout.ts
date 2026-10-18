@@ -1,5 +1,12 @@
 import { randomBytes } from "node:crypto";
-import { type CheckoutInput, needsGlasses, seatPricing, type ShowFormat, SocketEvent } from "@sinema/shared";
+import {
+  type CheckoutInput,
+  type KioskCheckoutInput,
+  needsGlasses,
+  seatPricing,
+  type ShowFormat,
+  SocketEvent,
+} from "@sinema/shared";
 import { isUniqueViolation, prisma } from "../db.js";
 import { HttpError } from "../lib/http-error.js";
 import type { AuthClaims } from "../lib/jwt.js";
@@ -7,6 +14,7 @@ import { createQrToken } from "../lib/qr.js";
 import { mailer } from "../notifications/index.js";
 import { buildTicketEmail } from "../notifications/ticket-email.js";
 import { paymentProvider } from "../payments/index.js";
+import type { ChargeResult } from "../payments/provider.js";
 import { emitToShowtime } from "../realtime.js";
 
 const orderWithTickets = {
@@ -54,12 +62,31 @@ async function loadOrder(id: string) {
   return prisma.order.findUniqueOrThrow({ where: { id }, include: orderWithTickets });
 }
 
+/** What a sale needs once the caller is known, whichever app it came from. */
+type SaleInput = Omit<CheckoutInput, "channel" | "email"> & {
+  channel: "WEB" | "MOBILE" | "KIOSK";
+  email: string | null;
+  payment: "CARD" | "CASH";
+};
+
+/** An online sale by a customer or a guest. */
+export function checkout(auth: AuthClaims, input: CheckoutInput) {
+  // Guests' channel comes from their session; signed-in customers say which app they use.
+  const channel = auth.role === "GUEST" ? (auth.channel ?? "KIOSK") : input.channel;
+  return sell(auth, { ...input, channel, payment: "CARD" });
+}
+
+/** A box-office sale by staff; the tickets belong to no account. */
+export function kioskCheckout(auth: AuthClaims, input: KioskCheckoutInput) {
+  return sell(auth, { ...input, channel: "KIOSK", email: input.email ?? null });
+}
+
 /**
  * Pays for the caller's locked seats in one showtime and turns them into tickets.
  * Repeating a call with the same idempotency key returns the first result instead of
  * charging again, so a client can safely retry after a timeout.
  */
-export async function checkout(auth: AuthClaims, input: CheckoutInput) {
+async function sell(auth: AuthClaims, input: SaleInput) {
   const existing = await prisma.order.findUnique({
     where: { idempotencyKey: input.idempotencyKey },
     include: orderWithTickets,
@@ -87,9 +114,10 @@ export async function checkout(auth: AuthClaims, input: CheckoutInput) {
   }
   const lines = await priceItems(input.items, locks[0]!.showtime.format);
 
-  const isGuest = auth.role === "GUEST";
-  const userId = isGuest ? null : auth.sub;
-  const channel = isGuest ? (auth.channel ?? "KIOSK") : input.channel;
+  // Only a customer's own purchase goes to their account.
+  const userId = auth.role === "CUSTOMER" ? auth.sub : null;
+  const { channel } = input;
+  const cash = input.payment === "CASH";
   // Discounts follow from the showtime itself (Wednesday, weekday daytime), never from the client.
   const seatPrice = seatPricing(locks[0]!.showtime).price;
   const amount =
@@ -103,7 +131,8 @@ export async function checkout(auth: AuthClaims, input: CheckoutInput) {
         holderId: auth.sub,
         userId,
         amount,
-        provider: paymentProvider.name,
+        provider: cash ? "cash" : paymentProvider.name,
+        paymentMethod: input.payment,
         idempotencyKey: input.idempotencyKey,
         contactEmail: input.email,
         accessToken: randomBytes(24).toString("base64url"),
@@ -119,11 +148,10 @@ export async function checkout(auth: AuthClaims, input: CheckoutInput) {
     throw error;
   }
 
-  const charge = await paymentProvider.charge({
-    orderId: order.id,
-    amount,
-    simulate: input.simulate,
-  });
+  // Cash is taken at the counter before the sale is confirmed, so there is nothing to charge.
+  const charge: ChargeResult = cash
+    ? { ok: true, providerRef: `cash-${order.id}` }
+    : await paymentProvider.charge({ orderId: order.id, amount, simulate: input.simulate });
   if (!charge.ok) {
     await prisma.order.update({ where: { id: order.id }, data: { status: "FAILED" } });
     throw new HttpError(402, "PAYMENT_DECLINED", charge.reason);
@@ -162,7 +190,7 @@ export async function checkout(auth: AuthClaims, input: CheckoutInput) {
     });
   } catch (error) {
     await prisma.order.update({ where: { id: order.id }, data: { status: "FAILED" } });
-    await paymentProvider.refund(charge.providerRef);
+    if (!cash) await paymentProvider.refund(charge.providerRef);
     if (isUniqueViolation(error)) {
       throw new HttpError(409, "SEAT_TAKEN", "A seat was sold before payment finished");
     }
@@ -174,10 +202,12 @@ export async function checkout(auth: AuthClaims, input: CheckoutInput) {
   });
 
   // The sale stands even if the email fails; the order link on the confirmation screen still works.
-  try {
-    await mailer.send(await buildTicketEmail(order.id, input.locale));
-  } catch (error) {
-    console.error(`Ticket email for order ${order.id} failed`, error);
+  if (input.email) {
+    try {
+      await mailer.send(await buildTicketEmail(order.id, input.locale));
+    } catch (error) {
+      console.error(`Ticket email for order ${order.id} failed`, error);
+    }
   }
   return loadOrder(order.id);
 }

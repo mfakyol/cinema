@@ -6,7 +6,7 @@ A cinema ticketing system that sells tickets from the web, a customer app and a 
 
 What makes it stand out as a portfolio project:
 
-- Three clients, one API: web, mobile (React Native) and kiosk (Electron)
+- Three kinds of client, one API: web (with the box-office kiosk), a customer app and a staff app (Expo)
 - A real technical problem: never selling the same seat twice (seat locking)
 - Real-time updates: seat state reaches every screen instantly
 - End-to-end flow: purchase, QR ticket, QR check at the door, admin reports
@@ -21,7 +21,7 @@ There are three roles: customer, staff and admin. The web, the customer app and 
 | Web – `/admin` panel | Admin | Adds movies, halls, seat layouts and showtimes; sees sales and occupancy reports; manages staff accounts |
 | Customer app (Expo) | Customer (signed in) | Same purchase flow as the web + my tickets; an account is required |
 | Staff app (Expo) | Staff | Signs in and scans QR codes at the hall entrance, which marks tickets as used |
-| Kiosk (Electron) | Staff + customer | A two-screen box office: staff sell tickets on one screen, the second screen faces the customer and shows the seats, the total and the QR codes |
+| Web – `/kiosk` box office | Staff + customer | A two-screen box office: staff sell on `/kiosk`, and `/kiosk/display` in a second window faces the customer with the seats, the basket, the total and a QR code for the tickets |
 
 ## Stack
 
@@ -38,7 +38,7 @@ TypeScript everywhere; the backend is Node + Express + PostgreSQL.
 | Auth | JWT | Same approach for web, mobile and kiosk |
 | Web | Next.js (App Router) | Customer site + admin panel |
 | Mobile | Expo + Expo Router | File-based routing, similar to Next.js |
-| Kiosk | Electron + React (Vite) | Touchscreen desktop app |
+| Kiosk | Pages of the Next.js app | Two browser windows (or a kiosk-mode browser) linked by a BroadcastChannel; no separate app to install |
 | Data fetching | TanStack Query | Same in all three clients |
 | Hosting | Docker Compose | PostgreSQL + API on our own server |
 
@@ -50,10 +50,9 @@ Five apps and two shared packages live in one repo.
 sinema/
 ├── apps/
 │   ├── api/        Express + Prisma + Socket.io
-│   ├── web/        Next.js (customer site + /admin)
+│   ├── web/        Next.js (customer site, /kiosk box office, /admin)
 │   ├── mobile/     Expo customer app
-│   ├── staff/      Expo staff app (QR scanning at the doors)
-│   └── kiosk/      Electron + React (Vite)
+│   └── staff/      Expo staff app (QR scanning at the doors)
 ├── packages/
 │   ├── shared/     shared types, Zod schemas, constants, translations
 │   └── native/     code shared by the two Expo apps: API client, session, i18n, theme
@@ -106,7 +105,8 @@ Rules:
 - QR tokens must be unguessable (random, signed)
 - A QR code holds a link to its own page: `<WEB_URL>/t/<qrToken>` for tickets, `<WEB_URL>/c/<qrToken>` for concession items. Any phone camera opens it; scanners take the kind and the code out of the link
 - The door only admits tickets and the stand only hands over items; each turns the other kind away without using it up, so the two never block each other
-- The kiosk resets its session and releases its locks after 60 seconds without a touch
+- The box office holds seats under the signed-in staff member; clearing a sale releases them, otherwise they expire like any other hold
+- Box-office sales are paid in cash or by card at the counter; the email is optional and the tickets belong to no account
 
 ## API and Socket.io events
 
@@ -119,10 +119,12 @@ REST endpoints live under `/api`; real-time events go to per-showtime rooms.
 | GET | /movies | Movies now showing | Anyone |
 | GET | /movies/:id | One movie | Anyone |
 | GET | /movies/:id/showtimes | A movie's upcoming showtimes | Anyone |
+| GET | /showtimes?from=&to= | Every movie's showtimes in a window of up to 8 days, for the box office | Anyone |
 | GET | /showtimes/:id/seats | Seats + state (free / locked / sold) | Anyone |
-| POST | /showtimes/:id/locks | Lock seats | Customer, guest |
+| POST | /showtimes/:id/locks | Lock seats | Customer, guest, staff |
 | DELETE | /locks/:id | Release a lock | Lock holder |
 | POST | /checkout | Simulate payment, create tickets (idempotent per key) | Customer, guest |
+| POST | /checkout/kiosk | Box-office sale: cash or card, optional email, channel KIOSK | Staff, admin |
 | GET | /me/tickets | Tickets bought by this user or guest session | Customer, guest |
 | GET | /orders/:accessToken | An order's tickets, for the emailed link | Link holder |
 | GET | /tickets/:qrToken | One ticket, for the link in its QR code | Code holder |
@@ -156,12 +158,12 @@ These are the defaults; changes are recorded here.
 | Kiosk ticket | QR on screen first, printer later |
 | Ticket delivery | Email only, sent by the API through EmailJS's REST API (private key stays on the server); logged instead of sent when EmailJS is not configured |
 | Accounts | Web: optional, guests buy with an email. Customer app: required. Staff app: staff and admin accounts only. Kiosk: staff sign in; customers need no account |
-| Schedule | The seed plans each hall's day back to back for 3 days; a full schedule through 2030 comes later |
+| Schedule | The seed plans each hall's day back to back for 7 days; a full schedule through 2030 comes later |
 | Content language | Code and docs in English; the UI is English and Turkish, picked from the system language |
 | Formats | 2D, 3D, IMAX and IMAX 3D; each hall lists the formats it supports and the same movie can run in several formats on one day |
 | Discounts | Automatic flags from the start time, in cinema time: Wednesday is people's day (50% off); other weekdays before 17:00 get 15% off; at most one applies |
 | Concessions | Products with their own QR codes per unit, collected at the stand; staff pick Door or Stand mode in the staff app |
-| Hall layouts | Reusable seating plans (rows of S/V/W/_ cells) that halls are built from; the admin panel will create and assign them |
+| Hall layouts | Reusable seating plans (rows of S/W/_ cells) that halls are built from; the admin panel will create and assign them |
 | Movie data | Now-playing movies from TMDB (titles, runtimes, genres, poster links) in `apps/api/prisma/movies.json`; descriptions are written by us; TMDB is credited in the apps |
 
 ## Roadmap

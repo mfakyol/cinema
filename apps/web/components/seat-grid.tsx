@@ -21,18 +21,19 @@ function lookOf(seat: SeatMapSeat): SeatLook {
 
 /**
  * The hall's seat map as its layout draws it: every row spans `columns` cells, aisles stay
- * empty, and short rows keep the indent the layout gives them.
+ * empty, and short rows keep the indent the layout gives them. Without `onToggle` it is
+ * read-only, as on the box office's customer screen.
  */
 export function SeatGrid({
   seats,
   columns,
-  busySeatId,
+  busySeatId = null,
   onToggle,
 }: {
   seats: SeatMapSeat[];
   columns: number;
-  busySeatId: string | null;
-  onToggle: (seat: SeatMapSeat) => void;
+  busySeatId?: string | null;
+  onToggle?: (seat: SeatMapSeat) => void;
 }) {
   const t = useTranslations("seats");
   const rows = groupBy(seats, (seat) => seat.row);
@@ -62,16 +63,17 @@ export function SeatGrid({
                     <button
                       key={column}
                       type="button"
-                      disabled={look === "taken" || busySeatId !== null}
+                      disabled={!onToggle || look === "taken" || busySeatId !== null}
                       aria-pressed={look === "mine"}
                       aria-label={`${t("seatLabel", { row: seat.row, number: seat.number })}, ${t(
                         look === "taken" ? "taken" : look === "mine" ? "mine" : "free",
                       )}${wheelchair ? `, ${t("wheelchair")}` : ""}`}
-                      onClick={() => onToggle(seat)}
+                      onClick={() => onToggle?.(seat)}
                       className={cn(
                         cell,
                         "rounded-t-lg rounded-b-sm text-[11px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                         seatStyles[look],
+                        !onToggle && "pointer-events-none",
                         wheelchair && look !== "taken" && "ring-2 ring-primary/70",
                         busySeatId === seat.id && "animate-pulse",
                       )}

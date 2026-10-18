@@ -115,14 +115,12 @@ describe("seat locks", () => {
     expect(res.body.error.code).toBe("SHOWTIME_STARTED");
   });
 
-  it("requires a customer or guest token", async () => {
+  it("requires a token", async () => {
     const { showtime, seats } = await createFixture();
     await api()
       .post(`/api/showtimes/${showtime.id}/locks`)
       .send({ seatIds: [seats[0]!.id] })
       .expect(401);
-    const staff = await createUser("STAFF");
-    await lock(staff.token, showtime.id, [seats[0]!.id]).expect(403);
   });
 
   it("releases a lock only for its holder", async () => {

@@ -46,6 +46,11 @@ enum ShowFormat {
   IMAX_3D
 }
 
+enum PaymentMethod {
+  CARD
+  CASH
+}
+
 enum SalesChannel {
   WEB
   MOBILE
@@ -149,10 +154,12 @@ model Order {
   amount         Int
   status         OrderStatus @default(PENDING)
   provider       String
+  /// Box-office sales may be paid in cash; everything else is a card payment.
+  paymentMethod  PaymentMethod @default(CARD)
   providerRef    String?
   idempotencyKey String      @unique
-  /// Where the tickets and the order link are emailed.
-  contactEmail   String
+  /// Where the tickets and the order link are emailed; box-office buyers may skip it.
+  contactEmail   String?
   /// Unguessable token in the order link, which shows the QR codes without signing in.
   accessToken    String      @unique
   createdAt      DateTime    @default(now())

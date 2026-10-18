@@ -46,6 +46,24 @@ export const checkoutSchema = z.object({
 });
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 
+/**
+ * A box-office sale by staff: the buyer pays at the counter in cash or by card, and the
+ * email is optional because the tickets are shown on the customer screen.
+ */
+export const kioskCheckoutSchema = checkoutSchema.omit({ channel: true, email: true }).extend({
+  email: z.email().toLowerCase().optional(),
+  payment: z.enum(["CARD", "CASH"]).default("CARD"),
+});
+export type KioskCheckoutInput = z.infer<typeof kioskCheckoutSchema>;
+
+/** A window of showtimes, e.g. one day at the box office; at most a week long. */
+export const showtimeRangeSchema = z
+  .object({ from: z.coerce.date(), to: z.coerce.date() })
+  .refine(({ from, to }) => from < to && to.getTime() - from.getTime() <= 8 * 24 * 60 * 60 * 1000, {
+    message: "from must be before to, at most 8 days apart",
+  });
+export type ShowtimeRange = z.infer<typeof showtimeRangeSchema>;
+
 /** What a scanner read: the link from a QR code, or a bare code. */
 export const scanSchema = z.object({
   qrToken: z.string().min(1).max(500),

@@ -3,7 +3,7 @@
 import { Clock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { formatRemaining } from "./use-countdown";
+import { formatRemaining } from "@/lib/use-countdown";
 
 const STEPS = ["seats", "extras", "payment"] as const;
 export type PurchaseStep = (typeof STEPS)[number];

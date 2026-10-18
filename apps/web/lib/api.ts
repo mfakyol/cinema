@@ -8,6 +8,7 @@ export type {
   OrderItem,
   OrderPage,
   Product,
+  ScheduledShowtime,
   SeatMap,
   SeatMapSeat,
   Showtime,

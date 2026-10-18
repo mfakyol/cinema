@@ -4,7 +4,7 @@ import { Radio } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import type { SeatMap } from "@/lib/api";
-import { FormatBadge } from "../../movies/[id]/movie-detail";
+import { FormatBadge } from "@/components/format-badge";
 
 /** Movie, time, hall, format and any discount, shown above every purchase step. */
 export function ShowtimeHeader({ showtime, live }: { showtime: SeatMap["showtime"]; live?: boolean }) {
