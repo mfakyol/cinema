@@ -1,6 +1,6 @@
-import { CINEMA_TIME_ZONE, type Movie, type Showtime } from "@sinema/shared";
+import { CINEMA_TIME_ZONE, groupBy, type Movie, SHOW_FORMATS, type ShowFormat, type Showtime } from "@sinema/shared";
 import { useQuery } from "@tanstack/react-query";
-import { Link, Stack, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { Pressable, View } from "react-native";
 import { useFormatter, useNow, useTranslations } from "use-intl";
 import { LoadError } from "@/components/load-error";
@@ -18,8 +18,6 @@ export default function MovieScreen() {
   const t = useTranslations();
   const format = useFormatter();
   const now = useNow();
-  const price = usePrice();
-  const colors = useColors();
 
   const movie = useQuery({ queryKey: ["movie", id], queryFn: () => api.fetch<{ movie: Movie }>(`/movies/${id}`) });
   const showtimes = useQuery({
@@ -36,7 +34,7 @@ export default function MovieScreen() {
   }
   if (!movie.data) return <Loading />;
 
-  const days = Map.groupBy(showtimes.data?.showtimes ?? [], (s) => dayKey(new Date(s.startsAt)));
+  const days = groupBy(showtimes.data?.showtimes ?? [], (s) => dayKey(new Date(s.startsAt)));
   const today = dayKey(now);
   const tomorrow = dayKey(new Date(now.getTime() + 24 * 60 * 60 * 1000));
   const dayLabel = (key: string, first: Showtime) =>
@@ -64,35 +62,89 @@ export default function MovieScreen() {
       <Text variant="heading">{t("movie.showtimes")}</Text>
       {showtimes.isPending && <Loading />}
       {showtimes.data?.showtimes.length === 0 && <Text variant="muted">{t("movie.noShowtimes")}</Text>}
-      {[...days].map(([key, list]) => (
-        <View key={key} style={{ gap: spacing.sm }}>
-          <Text variant="small">{dayLabel(key, list[0]!)}</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
-            {list.map((showtime) => (
-              <Link key={showtime.id} href={`/showtimes/${showtime.id}`} asChild>
-                <Pressable
-                  accessibilityRole="link"
-                  style={({ pressed }) => ({
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                    borderRadius: radius.md,
-                    paddingVertical: spacing.sm,
-                    paddingHorizontal: spacing.md,
-                    opacity: pressed ? 0.7 : 1,
-                  })}
-                >
-                  <Text style={{ fontWeight: "600" }}>
-                    {format.dateTime(new Date(showtime.startsAt), { hour: "2-digit", minute: "2-digit" })}
-                  </Text>
-                  <Text variant="small">
-                    {showtime.hall.name} · {price(showtime.price)}
-                  </Text>
-                </Pressable>
-              </Link>
+      {[...days].map(([key, list]) => {
+        // Within a day, one row per format (2D, 3D, IMAX, IMAX 3D), each with its own halls.
+        const byFormat = groupBy(list, (showtime) => showtime.format);
+        return (
+          <View key={key} style={{ gap: spacing.md }}>
+            <Text variant="heading">{dayLabel(key, list[0]!)}</Text>
+            {SHOW_FORMATS.filter((showFormat) => byFormat.has(showFormat)).map((showFormat) => (
+              <View key={showFormat} style={{ gap: spacing.sm }}>
+                <FormatBadge format={showFormat} />
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
+                  {byFormat.get(showFormat)!.map((showtime) => (
+                    <ShowtimeButton key={showtime.id} showtime={showtime} />
+                  ))}
+                </View>
+              </View>
             ))}
           </View>
-        </View>
-      ))}
+        );
+      })}
     </Screen>
+  );
+}
+
+/** "2D" in grey, premium formats (3D, IMAX) in the brand colour. */
+function FormatBadge({ format }: { format: ShowFormat }) {
+  const t = useTranslations("format");
+  const colors = useColors();
+  const premium = format !== "TWO_D";
+  return (
+    <View
+      style={{
+        alignSelf: "flex-start",
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 2,
+        borderRadius: radius.sm,
+        backgroundColor: premium ? colors.primary : colors.muted,
+      }}
+    >
+      <Text variant="small" style={{ fontWeight: "700", color: premium ? colors.primaryForeground : colors.foreground }}>
+        {t(format)}
+      </Text>
+    </View>
+  );
+}
+
+function ShowtimeButton({ showtime }: { showtime: Showtime }) {
+  const t = useTranslations("discounts");
+  const format = useFormatter();
+  const price = usePrice();
+  const colors = useColors();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push(`/showtimes/${showtime.id}`)}
+      style={({ pressed }) => ({
+        minWidth: 96,
+        borderWidth: 1,
+        borderColor: pressed ? colors.primary : colors.border,
+        backgroundColor: colors.card,
+        borderRadius: radius.md,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        alignItems: "center",
+        gap: 2,
+        opacity: pressed ? 0.8 : 1,
+      })}
+    >
+      <Text style={{ fontWeight: "700", fontSize: 18, color: colors.primary }}>
+        {format.dateTime(new Date(showtime.startsAt), { hour: "2-digit", minute: "2-digit" })}
+      </Text>
+      <Text variant="small">
+        {showtime.hall.name} · {price(showtime.price)}
+      </Text>
+      {showtime.discount && (
+        <>
+          <Text variant="small" style={{ textDecorationLine: "line-through" }}>
+            {price(showtime.basePrice)}
+          </Text>
+          <Text variant="small" style={{ color: colors.success, fontWeight: "700" }}>
+            {t(showtime.discount.kind, { percent: showtime.discount.percent })}
+          </Text>
+        </>
+      )}
+    </Pressable>
   );
 }

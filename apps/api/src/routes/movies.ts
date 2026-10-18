@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { seatPricing } from "@sinema/shared";
 import { prisma } from "../db.js";
 import { HttpError } from "../lib/http-error.js";
 
@@ -24,6 +25,12 @@ moviesRouter.get("/:id/showtimes", async (req, res) => {
     orderBy: { startsAt: "asc" },
   });
   res.json({
-    showtimes: showtimes.map(({ id, startsAt, price, hall }) => ({ id, startsAt, price, hall })),
+    showtimes: showtimes.map(({ id, startsAt, price, format, hall }) => ({
+      id,
+      startsAt,
+      format,
+      hall,
+      ...seatPricing({ price, startsAt }),
+    })),
   });
 });

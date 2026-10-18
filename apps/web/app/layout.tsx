@@ -24,6 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = await getLocale();
+  const t = await getTranslations();
   return (
     <html
       lang={locale}
@@ -34,6 +35,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <Providers>
             <SiteHeader />
             <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
+            <footer className="mx-auto w-full max-w-5xl px-4 pb-8 text-xs text-muted-foreground">
+              {t("common.tmdbAttribution")}
+            </footer>
             <Toaster position="top-center" />
           </Providers>
         </NextIntlClientProvider>
