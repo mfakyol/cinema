@@ -1,4 +1,4 @@
-import type { SeatState } from "@sinema/shared";
+import { type SeatState, seatPricing } from "@sinema/shared";
 import { prisma } from "../db.js";
 import { HttpError } from "../lib/http-error.js";
 
@@ -11,7 +11,7 @@ export async function getSeatMap(showtimeId: string, holderId?: string) {
         select: {
           id: true,
           name: true,
-          seats: { orderBy: [{ row: "asc" }, { number: "asc" }] },
+          seats: { orderBy: [{ row: "asc" }, { column: "asc" }] },
         },
       },
     },
@@ -36,10 +36,12 @@ export async function getSeatMap(showtimeId: string, holderId?: string) {
     showtime: {
       id: showtime.id,
       startsAt: showtime.startsAt,
-      price: showtime.price,
+      ...seatPricing(showtime),
+      format: showtime.format,
       movie: showtime.movie,
       hall: { id: showtime.hall.id, name: showtime.hall.name },
     },
+    columns: Math.max(0, ...showtime.hall.seats.map((seat) => seat.column + 1)),
     seats: showtime.hall.seats.map((seat) => {
       const lock = lockBySeat.get(seat.id);
       const state: SeatState = soldSeats.has(seat.id) ? "sold" : lock ? "locked" : "free";
@@ -48,6 +50,7 @@ export async function getSeatMap(showtimeId: string, holderId?: string) {
         id: seat.id,
         row: seat.row,
         number: seat.number,
+        column: seat.column,
         type: seat.type,
         state,
         // Only the holder sees their own lock id and expiry, to release or count down.
