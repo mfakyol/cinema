@@ -6,7 +6,7 @@ A cinema ticketing system that sells tickets from the web, a customer app and a 
 
 What makes it stand out as a portfolio project:
 
-- Three kinds of client, one API: web (with the box-office kiosk), a customer app and a staff app (Expo)
+- Four clients, one API: the website (Next.js), the box-office kiosk (React + Vite), and a customer app and a staff app (Expo)
 - A real technical problem: never selling the same seat twice (seat locking)
 - Real-time updates: seat state reaches every screen instantly
 - End-to-end flow: purchase, QR ticket, QR check at the door, admin reports
@@ -21,7 +21,7 @@ There are three roles: customer, staff and admin. The web, the customer app and 
 | Web – `/admin` panel | Admin | Adds movies, halls, seat layouts and showtimes; sees sales and occupancy reports; manages staff accounts |
 | Customer app (Expo) | Customer (signed in) | Same purchase flow as the web + my tickets; an account is required |
 | Staff app (Expo) | Staff | Signs in and scans QR codes at the hall entrance, which marks tickets as used |
-| Web – `/kiosk` box office | Staff + customer | A two-screen box office: staff sell on `/kiosk`, and `/kiosk/display` in a second window faces the customer with the seats, the basket, the total and a QR code for the tickets |
+| Kiosk (React + Vite) | Staff + customer | A two-screen box office: staff sell step by step (showtime, seats, snacks, payment) on one screen; the second screen faces the customer, lets them tap their own seats during the seats step, then shows the basket, the total and a QR code for the tickets |
 
 ## Stack
 
@@ -38,7 +38,7 @@ TypeScript everywhere; the backend is Node + Express + PostgreSQL.
 | Auth | JWT | Same approach for web, mobile and kiosk |
 | Web | Next.js (App Router) | Customer site + admin panel |
 | Mobile | Expo + Expo Router | File-based routing, similar to Next.js |
-| Kiosk | Pages of the Next.js app | Two browser windows (or a kiosk-mode browser) linked by a BroadcastChannel; no separate app to install |
+| Kiosk | React + Vite | A single-page app with no SEO needs; its two windows (`/` and `/display`) are linked by a BroadcastChannel. The website stays on Next.js for SEO |
 | Data fetching | TanStack Query | Same in all three clients |
 | Hosting | Docker Compose | PostgreSQL + API on our own server |
 
@@ -50,12 +50,13 @@ Five apps and two shared packages live in one repo.
 sinema/
 ├── apps/
 │   ├── api/        Express + Prisma + Socket.io
-│   ├── web/        Next.js (customer site, /kiosk box office, /admin)
+│   ├── web/        Next.js (customer site + /admin)
+│   ├── kiosk/      React + Vite box office (staff screen + customer screen)
 │   ├── mobile/     Expo customer app
 │   └── staff/      Expo staff app (QR scanning at the doors)
 ├── packages/
 │   ├── shared/     shared types, Zod schemas, constants, translations
-│   └── native/     code shared by the two Expo apps: API client, session, i18n, theme
+│   └── client/     code shared by the Expo apps and the kiosk: API client, session store, live seat updates
 ├── docker-compose.yml
 ├── package.json
 └── pnpm-workspace.yaml
@@ -119,7 +120,7 @@ REST endpoints live under `/api`; real-time events go to per-showtime rooms.
 | GET | /movies | Movies now showing | Anyone |
 | GET | /movies/:id | One movie | Anyone |
 | GET | /movies/:id/showtimes | A movie's upcoming showtimes | Anyone |
-| GET | /showtimes?from=&to= | Every movie's showtimes in a window of up to 8 days, for the box office | Anyone |
+| GET | /showtimes?from=&to= | Every movie's showtimes in a window of up to 8 days, with the seats left, for the box office | Anyone |
 | GET | /showtimes/:id/seats | Seats + state (free / locked / sold) | Anyone |
 | POST | /showtimes/:id/locks | Lock seats | Customer, guest, staff |
 | DELETE | /locks/:id | Release a lock | Lock holder |

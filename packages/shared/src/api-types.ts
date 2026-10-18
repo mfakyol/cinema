@@ -28,6 +28,8 @@ export interface Showtime {
 /** A showtime with its movie, as the box office lists a whole day. */
 export interface ScheduledShowtime extends Showtime {
   movie: Pick<Movie, "id" | "title" | "durationMin" | "genre" | "posterUrl">;
+  /** Seats neither sold nor held right now. */
+  seatsLeft: number;
 }
 
 export interface SeatMapSeat {

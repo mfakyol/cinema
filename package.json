@@ -10,6 +10,7 @@
     "db:seed": "pnpm --filter @sinema/api db:seed",
     "dev:api": "pnpm --filter @sinema/api dev",
     "dev:web": "pnpm --filter @sinema/web dev",
+    "dev:kiosk": "pnpm --filter @sinema/kiosk dev",
     "dev:mobile": "pnpm --filter @sinema/mobile start",
     "dev:staff": "pnpm --filter @sinema/staff start",
     "test": "pnpm --filter @sinema/api test",

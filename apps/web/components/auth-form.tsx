@@ -22,8 +22,7 @@ function safeNext(next: string | undefined): string {
   return next?.startsWith("/") && !next.startsWith("//") ? next : "/";
 }
 
-/** `staff` words the sign-in for the box office and leaves out the sign-up link. */
-export function AuthForm({ mode, next, staff = false }: { mode: Mode; next?: string; staff?: boolean }) {
+export function AuthForm({ mode, next }: { mode: Mode; next?: string }) {
   const t = useTranslations();
   const errorMessage = useErrorMessage();
   const router = useRouter();
@@ -72,10 +71,10 @@ export function AuthForm({ mode, next, staff = false }: { mode: Mode; next?: str
     <Card className="mx-auto w-full max-w-sm">
       <CardHeader>
         <CardTitle className="text-2xl">
-          {staff ? t("kiosk.signInTitle") : t(mode === "login" ? "auth.signInTitle" : "auth.registerTitle")}
+          {t(mode === "login" ? "auth.signInTitle" : "auth.registerTitle")}
         </CardTitle>
         <CardDescription>
-          {staff ? t("kiosk.signInSubtitle") : t(mode === "login" ? "auth.signInSubtitle" : "auth.registerSubtitle")}
+          {t(mode === "login" ? "auth.signInSubtitle" : "auth.registerSubtitle")}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -96,23 +95,18 @@ export function AuthForm({ mode, next, staff = false }: { mode: Mode; next?: str
             {t(mode === "login" ? "common.signIn" : "common.register")}
           </Button>
 
-          {!staff && (
-            <p className="text-center text-sm text-muted-foreground">
-              {t(mode === "login" ? "auth.noAccount" : "auth.haveAccount")}{" "}
-              <Link
-                href={`${mode === "login" ? "/register" : "/login"}${nextQuery}`}
-                className="font-medium text-foreground underline-offset-4 hover:underline"
-              >
-                {t(mode === "login" ? "common.register" : "common.signIn")}
-              </Link>
-            </p>
-          )}
+          <p className="text-center text-sm text-muted-foreground">
+            {t(mode === "login" ? "auth.noAccount" : "auth.haveAccount")}{" "}
+            <Link
+              href={`${mode === "login" ? "/register" : "/login"}${nextQuery}`}
+              className="font-medium text-foreground underline-offset-4 hover:underline"
+            >
+              {t(mode === "login" ? "common.register" : "common.signIn")}
+            </Link>
+          </p>
           {mode === "login" && (
             <p className="text-center text-xs text-muted-foreground">
-              {t("auth.demoHint", {
-                email: staff ? "staff@sinema.test" : "customer@sinema.test",
-                password: "demo1234",
-              })}
+              {t("auth.demoHint", { email: "customer@sinema.test", password: "demo1234" })}
             </p>
           )}
         </form>

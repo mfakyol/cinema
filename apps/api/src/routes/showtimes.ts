@@ -8,25 +8,35 @@ import { getSeatMap } from "../services/seats.js";
 
 export const showtimesRouter = Router();
 
-/** Every movie's showtimes between `from` and `to` that have not started yet. */
+/**
+ * Every movie's showtimes between `from` and `to` that have not started yet, with how many
+ * seats are neither sold nor held, so the box office can see full showings at a glance.
+ */
 showtimesRouter.get("/", async (req, res) => {
   const { from, to } = validate(showtimeRangeSchema, req.query);
   const now = new Date();
   const showtimes = await prisma.showtime.findMany({
     where: { startsAt: { gte: from > now ? from : now, lt: to } },
     include: {
-      hall: { select: { id: true, name: true } },
+      hall: { select: { id: true, name: true, _count: { select: { seats: true } } } },
       movie: { select: { id: true, title: true, durationMin: true, genre: true, posterUrl: true } },
+      _count: {
+        select: {
+          tickets: { where: { status: { not: "CANCELLED" } } },
+          locks: { where: { expiresAt: { gt: now } } },
+        },
+      },
     },
     orderBy: [{ startsAt: "asc" }, { hall: { name: "asc" } }],
   });
   res.json({
-    showtimes: showtimes.map(({ id, startsAt, price, format, hall, movie }) => ({
+    showtimes: showtimes.map(({ id, startsAt, price, format, hall, movie, _count }) => ({
       id,
       startsAt,
       format,
-      hall,
+      hall: { id: hall.id, name: hall.name },
       movie,
+      seatsLeft: hall._count.seats - _count.tickets - _count.locks,
       ...seatPricing({ price, startsAt }),
     })),
   });

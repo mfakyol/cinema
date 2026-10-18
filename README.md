@@ -25,6 +25,10 @@ The API serves `http://localhost:4000/api/health` and the website opens at `http
 
 The website picks English or Turkish from the browser's language and light or dark from the operating system theme. Set `NEXT_PUBLIC_API_URL` in `apps/web/.env.local` when the API is not on `http://localhost:4000`, and `NEXT_PUBLIC_SITE_URL` to the website's public address so ticket QR codes link there; it must match the API's `WEB_URL`.
 
+## Box office (kiosk)
+
+`pnpm dev:kiosk` starts the box office at `http://localhost:5174`. Sign in with a staff account (`staff@sinema.test` / `demo1234` in the seed data), then press "Open customer screen" and move that window to the second monitor (or open `http://localhost:5174/display`). Both windows must run in the same browser. Set `VITE_API_URL` and `VITE_SITE_URL` in `apps/kiosk/.env.local` when the API or the website run elsewhere.
+
 ## Mobile apps
 
 There are two Expo apps: the customer app (`apps/mobile`) and the staff app for checking tickets at the doors (`apps/staff`). Try them on a phone with [Expo Go](https://expo.dev/go):

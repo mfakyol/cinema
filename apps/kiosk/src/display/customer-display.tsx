@@ -1,19 +1,19 @@
-"use client";
-
-import { useQuery } from "@tanstack/react-query";
+import type { OrderPage, SeatMapSeat } from "@sinema/shared";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Clapperboard } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
 import { QRCodeSVG } from "qrcode.react";
+import { useEffect } from "react";
+import { toast } from "sonner";
+import { useLocale, useTranslations } from "use-intl";
 import { SeatGrid } from "@/components/seat-grid";
 import { ShowtimeHeader } from "@/components/showtime-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiFetch, type OrderPage } from "@/lib/api";
+import { api, SITE_URL } from "@/lib/api";
 import { basket, productsQuery } from "@/lib/basket";
-import { usePrice } from "@/lib/format";
+import { useErrorMessage, usePrice } from "@/lib/format";
 import { useKioskState } from "@/lib/kiosk-sync";
-import { siteUrl } from "@/lib/site";
 import { formatRemaining } from "@/lib/use-countdown";
 import { useSeatHold } from "@/lib/use-seat-hold";
 
@@ -22,13 +22,19 @@ import { useSeatHold } from "@/lib/use-seat-hold";
  * pick them, then a QR code that puts the tickets on their phone.
  */
 export function CustomerDisplay() {
+  const t = useTranslations();
   const state = useKioskState();
+
+  useEffect(() => {
+    document.title = `${t("kiosk.display.title")} · ${t("common.appName")}`;
+  }, [t]);
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6 lg:p-10">
+    <div className="flex h-dvh flex-col overflow-y-auto p-6 [scrollbar-gutter:stable] lg:p-8">
       {state?.orderToken ? (
-        <Receipt token={state.orderToken} />
+        <Receipt key={state.orderToken} token={state.orderToken} />
       ) : state?.showtimeId ? (
-        <Basket showtimeId={state.showtimeId} items={state.items} />
+        <Basket showtimeId={state.showtimeId} items={state.items} canPickSeats={state.step === "seats"} />
       ) : (
         <Welcome />
       )}
@@ -39,7 +45,7 @@ export function CustomerDisplay() {
 function Welcome() {
   const t = useTranslations("kiosk.display");
   return (
-    <div className="m-auto space-y-4 text-center">
+    <div className="m-auto animate-in space-y-4 text-center duration-500 fade-in">
       <Clapperboard className="mx-auto size-16 text-primary" aria-hidden />
       <h1 className="text-4xl font-bold tracking-tight lg:text-6xl">{t("welcome")}</h1>
       <p className="text-lg text-muted-foreground lg:text-xl">{t("welcomeSubtitle")}</p>
@@ -47,20 +53,59 @@ function Welcome() {
   );
 }
 
-function Basket({ showtimeId, items }: { showtimeId: string; items: [string, number][] }) {
+function Basket({
+  showtimeId,
+  items,
+  canPickSeats,
+}: {
+  showtimeId: string;
+  items: [string, number][];
+  canPickSeats: boolean;
+}) {
   const t = useTranslations();
   const locale = useLocale() as "en" | "tr";
   const price = usePrice();
-  // Signed in as the same staff member, so the seats held at the counter show as "your seats".
-  const { seatMap, mine, remaining } = useSeatHold(showtimeId);
+  const errorMessage = useErrorMessage();
+  // Signed in as the same staff member, so the seats held at the counter show as "your seats",
+  // and seats tapped here are held for the same sale.
+  const { seatMap, mine, remaining, refresh } = useSeatHold(showtimeId);
   const products = useQuery(productsQuery(showtimeId));
+  const toggleSeat = useMutation({
+    mutationFn: (seat: SeatMapSeat) =>
+      seat.lockId
+        ? api.fetch<void>(`/locks/${seat.lockId}`, { method: "DELETE" })
+        : api.post(`/showtimes/${showtimeId}/locks`, { seatIds: [seat.id] }),
+    onError: (error) => toast.error(errorMessage(error)),
+    onSettled: refresh,
+  });
 
   if (!seatMap.data) return <Skeleton className="h-full w-full" />;
   const { showtime, seats, columns } = seatMap.data;
   const { lines, total } = basket(products.data?.products, new Map(items), showtime.price, mine.length);
 
+  // While staff are on the seats step the whole screen is the seat map, for the customer to tap.
+  if (canPickSeats) {
+    return (
+      <div className="flex min-h-0 flex-1 animate-in flex-col gap-4 duration-500 fade-in">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <ShowtimeHeader showtime={showtime} />
+          <p className="text-xl font-semibold text-primary">{t("kiosk.display.pickSeats")}</p>
+        </div>
+        <div className="min-h-0 flex-1">
+          <SeatGrid
+            fill
+            seats={seats}
+            columns={columns}
+            busySeatId={toggleSeat.isPending ? toggleSeat.variables.id : null}
+            onToggle={(seat) => toggleSeat.mutate(seat)}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="grid flex-1 items-start gap-8 lg:grid-cols-[1fr_400px]">
+    <div className="grid flex-1 animate-in items-start gap-8 duration-500 fade-in lg:grid-cols-[1fr_420px]">
       <div className="space-y-6">
         <ShowtimeHeader showtime={showtime} />
         <Card>
@@ -74,7 +119,7 @@ function Basket({ showtimeId, items }: { showtimeId: string; items: [string, num
           {mine.map((seat) => (
             <div key={seat.id} className="flex justify-between gap-4">
               <span>{t("seats.seatLabel", { row: seat.row, number: seat.number })}</span>
-              <span>{price(showtime.price)}</span>
+              <span className="tabular-nums">{price(showtime.price)}</span>
             </div>
           ))}
           {lines.map(({ product, quantity }) => (
@@ -82,7 +127,7 @@ function Basket({ showtimeId, items }: { showtimeId: string; items: [string, num
               <span>
                 {quantity} × {product.name[locale]}
               </span>
-              <span>{price(product.price * quantity)}</span>
+              <span className="tabular-nums">{price(product.price * quantity)}</span>
             </div>
           ))}
           {showtime.discount && mine.length > 0 && (
@@ -93,7 +138,7 @@ function Basket({ showtimeId, items }: { showtimeId: string; items: [string, num
           <Separator />
           <div className="flex justify-between text-3xl font-bold">
             <span>{t("seats.total")}</span>
-            <span>{price(total)}</span>
+            <span className="tabular-nums">{price(total)}</span>
           </div>
           {remaining !== null && (
             <p className="text-sm tabular-nums text-muted-foreground">
@@ -111,16 +156,16 @@ function Receipt({ token }: { token: string }) {
   const locale = useLocale() as "en" | "tr";
   const order = useQuery({
     queryKey: ["order", token],
-    queryFn: () => apiFetch<{ order: OrderPage }>(`/orders/${encodeURIComponent(token)}`),
+    queryFn: () => api.fetch<{ order: OrderPage }>(`/orders/${encodeURIComponent(token)}`),
   });
   if (!order.data) return <Skeleton className="m-auto h-96 w-full max-w-md" />;
   const { tickets, vouchers, email } = order.data.order;
 
   return (
-    <div className="m-auto grid w-full max-w-4xl items-center gap-10 md:grid-cols-[auto_1fr]">
+    <div className="m-auto grid w-full max-w-4xl animate-in items-center gap-10 duration-500 fade-in zoom-in-95 md:grid-cols-[auto_1fr]">
       {/* Black on white in both themes so phone cameras can read it. */}
       <div className="mx-auto rounded-xl bg-white p-4">
-        <QRCodeSVG value={`${siteUrl()}/orders/${token}`} size={280} aria-label={t("kiosk.display.scanForTickets")} />
+        <QRCodeSVG value={`${SITE_URL}/orders/${token}`} size={280} aria-label={t("kiosk.display.scanForTickets")} />
       </div>
       <div className="space-y-4">
         <h1 className="text-4xl font-bold tracking-tight lg:text-5xl">{t("kiosk.display.thanks")}</h1>
