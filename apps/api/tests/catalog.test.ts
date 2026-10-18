@@ -9,6 +9,18 @@ describe("movies and showtimes", () => {
     expect(res.body.movies).toEqual([expect.objectContaining({ id: movie.id, title: "Test Movie" })]);
   });
 
+  it("returns one movie", async () => {
+    const { movie } = await createFixture();
+    const res = await api().get(`/api/movies/${movie.id}`).expect(200);
+    expect(res.body.movie).toMatchObject({ id: movie.id, durationMin: 100 });
+    await api().get("/api/movies/does-not-exist").expect(404);
+  });
+
+  it("allows cross-origin requests", async () => {
+    const res = await api().get("/api/movies").set("Origin", "http://localhost:3000").expect(200);
+    expect(res.headers["access-control-allow-origin"]).toBe("*");
+  });
+
   it("lists only upcoming showtimes for a movie", async () => {
     const { movie, hall, showtime } = await createFixture();
     await prisma.showtime.create({

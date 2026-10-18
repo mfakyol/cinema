@@ -18,7 +18,7 @@ export async function listUserTickets(userId: string) {
   return prisma.ticket.findMany({
     where: { userId },
     include: ticketDetails,
-    orderBy: { showtime: { startsAt: "desc" } },
+    orderBy: [{ showtime: { startsAt: "desc" } }, { seat: { row: "asc" } }, { seat: { number: "asc" } }],
   });
 }
 

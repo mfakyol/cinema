@@ -9,6 +9,12 @@ moviesRouter.get("/", async (_req, res) => {
   res.json({ movies });
 });
 
+moviesRouter.get("/:id", async (req, res) => {
+  const movie = await prisma.movie.findUnique({ where: { id: req.params.id } });
+  if (!movie) throw new HttpError(404, "NOT_FOUND", "Movie not found");
+  res.json({ movie });
+});
+
 moviesRouter.get("/:id/showtimes", async (req, res) => {
   const movie = await prisma.movie.findUnique({ where: { id: req.params.id } });
   if (!movie) throw new HttpError(404, "NOT_FOUND", "Movie not found");

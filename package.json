@@ -6,10 +6,11 @@
     "postinstall": "node packages/shared/node_modules/typescript/bin/tsc -p packages/shared",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
-    "dev:api": "pnpm --filter @sinema/api dev",
-    "typecheck": "pnpm -r typecheck",
     "db:migrate": "pnpm --filter @sinema/api db:migrate",
     "db:seed": "pnpm --filter @sinema/api db:seed",
-    "test": "pnpm --filter @sinema/api test"
+    "dev:api": "pnpm --filter @sinema/api dev",
+    "dev:web": "pnpm --filter @sinema/web dev",
+    "test": "pnpm --filter @sinema/api test",
+    "typecheck": "pnpm -r typecheck"
   }
 }

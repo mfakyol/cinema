@@ -1,3 +1,4 @@
+import cors from "cors";
 import express, { type ErrorRequestHandler } from "express";
 import { prisma } from "./db.js";
 import { HttpError } from "./lib/http-error.js";
@@ -27,6 +28,8 @@ const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
 
 export function createApp() {
   const app = express();
+  // Clients authenticate with a bearer header, not cookies, so any origin may call the API.
+  app.use(cors());
   app.use(express.json());
   app.use(authenticate);
 

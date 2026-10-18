@@ -1,0 +1,81 @@
+{
+  "common": {
+    "appName": "Sinema",
+    "loading": "Yükleniyor…",
+    "retry": "Tekrar dene",
+    "loadFailed": "Yüklenirken bir sorun oluştu.",
+    "signIn": "Giriş yap",
+    "signOut": "Çıkış yap",
+    "register": "Hesap oluştur",
+    "myTickets": "Biletlerim",
+    "back": "Geri",
+    "minutes": "{count} dk"
+  },
+  "home": {
+    "title": "Vizyondakiler",
+    "subtitle": "Filmini seç, koltuğunu belirle, biletini saniyeler içinde al.",
+    "showtimes": "Seanslar",
+    "empty": "Şu an vizyonda film yok."
+  },
+  "movie": {
+    "showtimes": "Seanslar",
+    "noShowtimes": "Yaklaşan seans yok.",
+    "today": "Bugün",
+    "tomorrow": "Yarın"
+  },
+  "seats": {
+    "screen": "Perde",
+    "free": "Boş",
+    "mine": "Senin koltukların",
+    "taken": "Dolu",
+    "vip": "VIP",
+    "seatLabel": "{row} sırası, {number} numara",
+    "selected": "{count, plural, =0 {Koltuk seçilmedi} other {# koltuk seçildi}}",
+    "pickHint": "Ayırmak için boş bir koltuğa dokun. Bırakmak için tekrar dokun.",
+    "total": "Toplam",
+    "heldFor": "{time} boyunca ayrıldı",
+    "pay": "{amount} öde",
+    "payDeclined": "Reddedilen kartı dene",
+    "signInToBuy": "Koltuk seçmek için giriş yap",
+    "purchased": "Biletlerin onaylandı.",
+    "ticketCount": "{count, plural, other {# bilet}}",
+    "viewTickets": "Biletleri gör",
+    "live": "Canlı"
+  },
+  "auth": {
+    "signInTitle": "Tekrar hoş geldin",
+    "signInSubtitle": "Bilet almak ve biletlerini görmek için giriş yap.",
+    "registerTitle": "Hesabını oluştur",
+    "registerSubtitle": "Bir dakikadan kısa sürer.",
+    "email": "E-posta",
+    "password": "Şifre",
+    "name": "Ad",
+    "noAccount": "Hesabın yok mu?",
+    "haveAccount": "Zaten hesabın var mı?",
+    "demoHint": "Demo hesap: {email} / {password}"
+  },
+  "tickets": {
+    "title": "Biletlerim",
+    "empty": "Henüz biletin yok.",
+    "browse": "Filmlere göz at",
+    "status": {
+      "PAID": "Geçerli",
+      "USED": "Kullanıldı",
+      "CANCELLED": "İptal edildi"
+    },
+    "showAtEntrance": "Bu kodu girişte göster."
+  },
+  "errors": {
+    "SEAT_TAKEN": "Bu koltuğu az önce başkası aldı.",
+    "LOCK_LIMIT": "Aynı anda en fazla 10 koltuk ayırabilirsin.",
+    "SHOWTIME_STARTED": "Bu seans başladı.",
+    "PAYMENT_DECLINED": "Kartın reddedildi. Koltukların hâlâ ayrılmış durumda.",
+    "NO_LOCKS": "Koltuk ayırma süren doldu. Lütfen koltuklarını yeniden seç.",
+    "LOCK_LOST": "Ödeme sırasında koltuk ayırma süren doldu. Ücret alınmadı.",
+    "INVALID_CREDENTIALS": "E-posta veya şifre hatalı.",
+    "EMAIL_TAKEN": "Bu e-postayla bir hesap zaten var.",
+    "VALIDATION": "Lütfen işaretli alanları kontrol et.",
+    "UNAUTHENTICATED": "Lütfen tekrar giriş yap.",
+    "generic": "Bir sorun oluştu. Lütfen tekrar dene."
+  }
+}

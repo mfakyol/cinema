@@ -1,0 +1,81 @@
+{
+  "common": {
+    "appName": "Sinema",
+    "loading": "Loading…",
+    "retry": "Try again",
+    "loadFailed": "Something went wrong while loading.",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "register": "Create account",
+    "myTickets": "My tickets",
+    "back": "Back",
+    "minutes": "{count} min"
+  },
+  "home": {
+    "title": "Now showing",
+    "subtitle": "Pick a movie, choose your seats and get your ticket in seconds.",
+    "showtimes": "Showtimes",
+    "empty": "No movies are showing right now."
+  },
+  "movie": {
+    "showtimes": "Showtimes",
+    "noShowtimes": "No upcoming showtimes.",
+    "today": "Today",
+    "tomorrow": "Tomorrow"
+  },
+  "seats": {
+    "screen": "Screen",
+    "free": "Available",
+    "mine": "Your seats",
+    "taken": "Taken",
+    "vip": "VIP",
+    "seatLabel": "Row {row}, seat {number}",
+    "selected": "{count, plural, =0 {No seats selected} one {# seat selected} other {# seats selected}}",
+    "pickHint": "Tap a free seat to hold it. Tap it again to let it go.",
+    "total": "Total",
+    "heldFor": "Held for {time}",
+    "pay": "Pay {amount}",
+    "payDeclined": "Simulate a declined card",
+    "signInToBuy": "Sign in to choose seats",
+    "purchased": "Your tickets are confirmed.",
+    "ticketCount": "{count, plural, one {# ticket} other {# tickets}}",
+    "viewTickets": "View tickets",
+    "live": "Live"
+  },
+  "auth": {
+    "signInTitle": "Welcome back",
+    "signInSubtitle": "Sign in to buy and see your tickets.",
+    "registerTitle": "Create your account",
+    "registerSubtitle": "It takes less than a minute.",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "noAccount": "New here?",
+    "haveAccount": "Already have an account?",
+    "demoHint": "Demo account: {email} / {password}"
+  },
+  "tickets": {
+    "title": "My tickets",
+    "empty": "You have no tickets yet.",
+    "browse": "Browse movies",
+    "status": {
+      "PAID": "Valid",
+      "USED": "Used",
+      "CANCELLED": "Cancelled"
+    },
+    "showAtEntrance": "Show this code at the entrance."
+  },
+  "errors": {
+    "SEAT_TAKEN": "Someone else just took that seat.",
+    "LOCK_LIMIT": "You can hold up to 10 seats at a time.",
+    "SHOWTIME_STARTED": "This showtime has already started.",
+    "PAYMENT_DECLINED": "Your card was declined. Your seats are still held.",
+    "NO_LOCKS": "Your seat hold ran out. Please pick your seats again.",
+    "LOCK_LOST": "Your seat hold ran out during payment. You were not charged.",
+    "INVALID_CREDENTIALS": "Email or password is wrong.",
+    "EMAIL_TAKEN": "An account with this email already exists.",
+    "VALIDATION": "Please check the highlighted fields.",
+    "UNAUTHENTICATED": "Please sign in again.",
+    "generic": "Something went wrong. Please try again."
+  }
+}
