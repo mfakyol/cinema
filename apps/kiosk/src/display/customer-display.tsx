@@ -16,6 +16,7 @@ import { useErrorMessage, usePrice } from "@/lib/format";
 import { useKioskState } from "@/lib/kiosk-sync";
 import { formatRemaining } from "@/lib/use-countdown";
 import { useSeatHold } from "@/lib/use-seat-hold";
+import { cn } from "@/lib/utils";
 
 /**
  * What the customer sees across the counter: a welcome, then their seats and basket as staff
@@ -83,70 +84,61 @@ function Basket({
   const { showtime, seats, columns } = seatMap.data;
   const { lines, total } = basket(products.data?.products, new Map(items), showtime.price, mine.length);
 
-  // While staff are on the seats step the whole screen is the seat map, for the customer to tap.
-  if (canPickSeats) {
-    return (
-      <div className="flex min-h-0 flex-1 animate-in flex-col gap-4 duration-500 fade-in">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <ShowtimeHeader showtime={showtime} />
-          <p className="text-xl font-semibold text-primary">{t("kiosk.display.pickSeats")}</p>
-        </div>
-        <div className="min-h-0 flex-1">
-          <SeatGrid
-            fill
-            seats={seats}
-            columns={columns}
-            busySeatId={toggleSeat.isPending ? toggleSeat.variables.id : null}
-            onToggle={(seat) => toggleSeat.mutate(seat)}
-          />
-        </div>
-      </div>
-    );
-  }
-
+  // One layout for every step, so the hall never moves or redraws: the seat map always fills
+  // the screen and is tappable on the seats step; afterwards the basket slides in over its
+  // right side.
   return (
-    <div className="grid flex-1 animate-in items-start gap-8 duration-500 fade-in lg:grid-cols-[1fr_420px]">
-      <div className="space-y-6">
+    <div className="flex min-h-0 flex-1 animate-in flex-col gap-4 duration-500 fade-in">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <ShowtimeHeader showtime={showtime} />
-        <Card>
-          <CardContent className="pt-6">
-            <SeatGrid seats={seats} columns={columns} />
-          </CardContent>
-        </Card>
+        <p className={cn("text-xl font-semibold text-primary", !canPickSeats && "invisible")} aria-hidden={!canPickSeats}>
+          {t("kiosk.display.pickSeats")}
+        </p>
       </div>
-      <Card>
-        <CardContent className="space-y-4 pt-6 text-lg">
-          {mine.map((seat) => (
-            <div key={seat.id} className="flex justify-between gap-4">
-              <span>{t("seats.seatLabel", { row: seat.row, number: seat.number })}</span>
-              <span className="tabular-nums">{price(showtime.price)}</span>
-            </div>
-          ))}
-          {lines.map(({ product, quantity }) => (
-            <div key={product.id} className="flex justify-between gap-4">
-              <span>
-                {quantity} × {product.name[locale]}
-              </span>
-              <span className="tabular-nums">{price(product.price * quantity)}</span>
-            </div>
-          ))}
-          {showtime.discount && mine.length > 0 && (
-            <p className="text-base font-semibold text-green-600 dark:text-green-400">
-              {t(`discounts.${showtime.discount.kind}`, { percent: showtime.discount.percent })}
-            </p>
-          )}
-          <Separator />
-          <div className="flex justify-between text-3xl font-bold">
-            <span>{t("seats.total")}</span>
-            <span className="tabular-nums">{price(total)}</span>
-          </div>
-          {remaining !== null && (
-            <p className="text-sm tabular-nums text-muted-foreground">
-              {t("seats.heldFor", { time: formatRemaining(remaining) })}
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      <div className="relative min-h-0 flex-1">
+        <SeatGrid
+          fill
+          seats={seats}
+          columns={columns}
+          busySeatId={toggleSeat.isPending ? toggleSeat.variables.id : null}
+          onToggle={canPickSeats ? (seat) => toggleSeat.mutate(seat) : undefined}
+        />
+        {!canPickSeats && (
+          <Card className="absolute inset-y-0 right-0 w-full max-w-md animate-in overflow-y-auto shadow-2xl duration-300 slide-in-from-right-8 fade-in">
+            <CardContent className="space-y-4 pt-2 text-lg">
+              {mine.map((seat) => (
+                <div key={seat.id} className="flex justify-between gap-4">
+                  <span>{t("seats.seatLabel", { row: seat.row, number: seat.number })}</span>
+                  <span className="tabular-nums">{price(showtime.price)}</span>
+                </div>
+              ))}
+              {lines.map(({ product, quantity }) => (
+                <div key={product.id} className="flex justify-between gap-4">
+                  <span>
+                    {quantity} × {product.name[locale]}
+                  </span>
+                  <span className="tabular-nums">{price(product.price * quantity)}</span>
+                </div>
+              ))}
+              {showtime.discount && mine.length > 0 && (
+                <p className="text-base font-semibold text-green-600 dark:text-green-400">
+                  {t(`discounts.${showtime.discount.kind}`, { percent: showtime.discount.percent })}
+                </p>
+              )}
+              <Separator />
+              <div className="flex justify-between text-3xl font-bold">
+                <span>{t("seats.total")}</span>
+                <span className="tabular-nums">{price(total)}</span>
+              </div>
+              {remaining !== null && (
+                <p className="text-sm tabular-nums text-muted-foreground">
+                  {t("seats.heldFor", { time: formatRemaining(remaining) })}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }
