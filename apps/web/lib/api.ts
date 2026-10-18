@@ -1,5 +1,19 @@
-import type { SeatState } from "@sinema/shared";
 import { getSessionToken, setSession } from "./session";
+
+// Response shapes are shared by every client; see @sinema/shared.
+export type {
+  ConcessionVoucher,
+  Movie,
+  Order,
+  OrderItem,
+  OrderPage,
+  Product,
+  SeatMap,
+  SeatMapSeat,
+  Showtime,
+  Ticket,
+  User,
+} from "@sinema/shared";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -41,79 +55,3 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
 export const postJson = <T>(path: string, data: unknown) =>
   apiFetch<T>(path, { method: "POST", body: JSON.stringify(data) });
-
-export interface Movie {
-  id: string;
-  title: string;
-  description: string;
-  durationMin: number;
-  genre: string;
-  posterUrl: string | null;
-}
-
-export interface Showtime {
-  id: string;
-  startsAt: string;
-  price: number;
-  hall: { id: string; name: string };
-}
-
-export interface SeatMapSeat {
-  id: string;
-  row: string;
-  number: number;
-  type: "STANDARD" | "VIP";
-  state: SeatState;
-  lockId?: string;
-  lockExpiresAt?: string;
-}
-
-export interface SeatMap {
-  showtime: {
-    id: string;
-    startsAt: string;
-    price: number;
-    movie: { id: string; title: string; durationMin: number };
-    hall: { id: string; name: string };
-  };
-  seats: SeatMapSeat[];
-}
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: "CUSTOMER" | "STAFF" | "ADMIN";
-}
-
-export interface Ticket {
-  id: string;
-  qrToken: string;
-  status: "PAID" | "USED" | "CANCELLED";
-  seat: { row: string; number: number; type: "STANDARD" | "VIP" };
-  showtime: {
-    id: string;
-    startsAt: string;
-    movie: { id: string; title: string; durationMin: number };
-    hall: { id: string; name: string };
-  };
-}
-
-export interface Order {
-  id: string;
-  status: "PENDING" | "PAID" | "FAILED";
-  amount: number;
-  contactEmail: string;
-  /** Opens /orders/<accessToken>, the page linked from the confirmation email. */
-  accessToken: string;
-  tickets: { id: string; seatId: string; qrToken: string }[];
-}
-
-/** The public view of an order behind its emailed link. */
-export interface OrderPage {
-  id: string;
-  amount: number;
-  /** Partly hidden, e.g. "ja***@example.com". */
-  email: string;
-  tickets: Ticket[];
-}

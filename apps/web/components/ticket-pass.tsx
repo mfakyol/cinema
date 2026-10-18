@@ -26,7 +26,7 @@ export function TicketPass({ ticket, className }: { ticket: Ticket; className?: 
     [t("tickets.details.time"), format.dateTime(startsAt, { hour: "2-digit", minute: "2-digit" })],
     [t("tickets.details.hall"), ticket.showtime.hall.name],
     [t("tickets.details.seat"), t("seats.seatLabel", { row: ticket.seat.row, number: ticket.seat.number })],
-    [t("tickets.details.seatType"), ticket.seat.type === "VIP" ? t("seats.vip") : t("tickets.details.standard")],
+    [t("tickets.details.seatType"), ticket.seat.type === "WHEELCHAIR" ? t("seats.wheelchair") : t("tickets.details.standard")],
     [t("tickets.details.duration"), t("common.minutes", { count: ticket.showtime.movie.durationMin })],
     [t("tickets.details.statusLabel"), t(`tickets.status.${ticket.status}`)],
   ];

@@ -39,7 +39,7 @@ function useBusyAction() {
  * Opens the system share sheet, or copies the link where there is none (most desktop browsers).
  * Returns quietly when the person closes the sheet.
  */
-async function shareLink(data: { title: string; text: string; url: string }, copiedMessage: string) {
+export async function shareLink(data: { title: string; text: string; url: string }, copiedMessage: string) {
   if (navigator.share) {
     try {
       await navigator.share(data);

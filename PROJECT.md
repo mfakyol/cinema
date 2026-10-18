@@ -66,18 +66,22 @@ Note: from Expo SDK 52, Metro is configured for monorepos automatically, and pnp
 
 ## Data model
 
-Eight tables: user, movie, hall, seat, showtime, seat lock, order and ticket.
+Twelve tables: user, movie, hall layout, hall, seat, showtime, seat lock, order, ticket, product, order item and concession voucher.
 
 | Table | Main fields | Notes |
 | --- | --- | --- |
 | User | id, email, passwordHash, name, role (CUSTOMER / STAFF / ADMIN) | Guest purchases have no user |
 | Movie | id, title, description, durationMin, genre, posterUrl, tmdbId? | Fixed catalog from the seed |
-| Hall | id, name | |
-| Seat | id, hallId, row (A, B…), number, type (STANDARD / VIP) | Unique: hallId + row + number |
-| Showtime | id, movieId, hallId, startsAt, price | No overlapping showtimes in the same hall |
+| HallLayout | id, name, rows (JSON: row label + cells) | Seating plans: S standard, V VIP, W wheelchair, _ aisle |
+| Hall | id, name, layoutId?, formats (TWO_D / THREE_D / IMAX / IMAX_3D) | A showtime's format must be one the hall supports |
+| Seat | id, hallId, row (A, B…), number, column, type (STANDARD / VIP / WHEELCHAIR) | Built from the hall layout; column keeps aisles. Unique: hallId + row + number |
+| Showtime | id, movieId, hallId, startsAt, price, format | price is the list price; discounts are applied automatically. No overlapping showtimes in the same hall |
 | SeatLock | id, showtimeId, seatId, holderId, expiresAt | Unique: showtimeId + seatId; an expired lock is void |
 | Order | id, holderId, userId?, amount, status (PENDING / PAID / FAILED), provider, providerRef?, idempotencyKey, contactEmail, accessToken, createdAt | Groups the tickets bought in one payment; idempotencyKey and accessToken are unique |
 | Ticket | id, orderId, showtimeId, seatId, userId?, status (PAID / USED / CANCELLED), qrToken, channel (WEB / MOBILE / KIOSK), createdAt | Unique: showtimeId + seatId (among non-cancelled tickets) |
+| Product | id, name (JSON by language), description?, category (COMBO / SNACK / DRINK / GLASSES), price, sortOrder, active | The concession stand; 3D glasses are sold only for 3D and IMAX 3D showtimes |
+| OrderItem | id, orderId, productId, quantity, unitPrice | Price at the time of sale |
+| ConcessionVoucher | id, orderItemId, qrToken, status (PAID / USED / CANCELLED), usedAt? | One per unit, each with its own QR code, so items can be collected separately or shared |
 
 Money is stored as integer cents.
 
@@ -85,11 +89,11 @@ Money is stored as integer cents.
 
 A selected seat is locked for 7 minutes; if payment does not finish in that time, the lock is released.
 
-1. The customer picks a movie and a showtime.
+1. The customer picks a movie and a showtime (grouped by day, then by format).
 2. The API returns the showtime's sold and locked seats.
 3. The customer picks seats; the API creates `SeatLock` rows in a transaction. The unique constraint rejects a second holder.
 4. Socket.io broadcasts "seat locked" to every client.
-5. The customer enters an email; no account is needed. When the (simulated) payment completes, a transaction creates the `Ticket` rows and a PAID `Order`, deletes the locks and issues QR tokens. Payment goes through a `PaymentProvider` interface; the first implementation is `FakeProvider`.
+5. Optional second step: snacks, drinks and combos; for 3D and IMAX 3D, 3D glasses come first with a "one per seat" shortcut. Third step: the basket (tickets, items, total) and payment. On the web the customer enters an email, as a guest if they like. When the (simulated) payment completes, a transaction creates the `Ticket` rows and a PAID `Order`, deletes the locks and issues QR tokens. Payment goes through a `PaymentProvider` interface; the first implementation is `FakeProvider`.
 6. The API emails the QR codes and a link to `/orders/<accessToken>`, a page that shows them on any device without signing in. A failed email does not undo the sale.
 7. If there is no payment within 7 minutes, the lock expires; the seat becomes free again and that is broadcast.
 8. At the entrance, staff scan the QR code; a `PAID` ticket becomes `USED`, anything else is rejected.
@@ -97,9 +101,11 @@ A selected seat is locked for 7 minutes; if payment does not finish in that time
 Rules:
 
 - Lock duration: 7 minutes
+- A holder buys for one showtime at a time: locking seats in another showtime releases the rest at once
 - A user or kiosk session can hold at most 10 seats at once
 - QR tokens must be unguessable (random, signed)
-- A QR code holds the ticket's link (`<WEB_URL>/t/<qrToken>`), so any phone camera opens the ticket; the gate scanner takes the code out of that link
+- A QR code holds a link to its own page: `<WEB_URL>/t/<qrToken>` for tickets, `<WEB_URL>/c/<qrToken>` for concession items. Any phone camera opens it; scanners take the kind and the code out of the link
+- The door only admits tickets and the stand only hands over items; each turns the other kind away without using it up, so the two never block each other
 - The kiosk resets its session and releases its locks after 60 seconds without a touch
 
 ## API and Socket.io events
@@ -120,6 +126,11 @@ REST endpoints live under `/api`; real-time events go to per-showtime rooms.
 | GET | /me/tickets | Tickets bought by this user or guest session | Customer, guest |
 | GET | /orders/:accessToken | An order's tickets, for the emailed link | Link holder |
 | GET | /tickets/:qrToken | One ticket, for the link in its QR code | Code holder |
+| GET | /products?showtimeId= | Products on sale; glasses only for 3D showtimes | Anyone |
+| GET | /me/concessions | Concession items bought by this user or guest | Customer, guest |
+| GET | /concessions/:qrToken | One item, for the link in its QR code | Code holder |
+| GET | /concessions/:qrToken/qr.png | An item's QR code as an image, for emails | Code holder |
+| POST | /concessions/collect | Hand an item over at the stand | Staff |
 | GET | /tickets/:qrToken/qr.png | A ticket's QR code as an image, for emails | Code holder |
 | POST | /tickets/verify | Check a QR code, mark the ticket used | Staff |
 | CRUD | /admin/movies, /admin/halls, /admin/showtimes | Administration | Admin |
@@ -145,8 +156,13 @@ These are the defaults; changes are recorded here.
 | Kiosk ticket | QR on screen first, printer later |
 | Ticket delivery | Email only, sent by the API through EmailJS's REST API (private key stays on the server); logged instead of sent when EmailJS is not configured |
 | Accounts | Web: optional, guests buy with an email. Customer app: required. Staff app: staff and admin accounts only. Kiosk: staff sign in; customers need no account |
-| Movie data | Fixed catalog in the seed; the same daily showtime schedule repeats. The seed covers 3 days for now; a full schedule through 2030 comes later |
-| Content language | English throughout: UI, seed data, docs |
+| Schedule | The seed plans each hall's day back to back for 3 days; a full schedule through 2030 comes later |
+| Content language | Code and docs in English; the UI is English and Turkish, picked from the system language |
+| Formats | 2D, 3D, IMAX and IMAX 3D; each hall lists the formats it supports and the same movie can run in several formats on one day |
+| Discounts | Automatic flags from the start time, in cinema time: Wednesday is people's day (50% off); other weekdays before 17:00 get 15% off; at most one applies |
+| Concessions | Products with their own QR codes per unit, collected at the stand; staff pick Door or Stand mode in the staff app |
+| Hall layouts | Reusable seating plans (rows of S/V/W/_ cells) that halls are built from; the admin panel will create and assign them |
+| Movie data | Now-playing movies from TMDB (titles, runtimes, genres, poster links) in `apps/api/prisma/movies.json`; descriptions are written by us; TMDB is credited in the apps |
 
 ## Roadmap
 
@@ -157,6 +173,6 @@ Every phase ends with something that runs and can be demoed.
 3. **Web** – movie list → showtime → seat picker → payment → my tickets
 4. **Mobile** – customer app (purchase flow) and staff app (QR scanning)
 5. **Kiosk** – two-screen box office: staff screen to sell, customer-facing screen with seats, total and QR codes
-6. **Admin** – adding movies, halls and showtimes, and the sales report; the seeded catalog covers demos until then
+6. **Admin** – movies, hall layouts and halls, showtimes, products, and the sales report; the seed covers demos until then
 7. **Release (MVP)** – API + web live, demo accounts, README
 8. **Polish** – screen recording, architecture diagram, a "how I solved double booking" write-up

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, apiFetch, type OrderPage } from "@/lib/api";
 import { OrderActions, TicketActions } from "@/components/ticket-actions";
+import { VoucherCard } from "@/components/voucher-card";
 
 /** The tickets behind an emailed order link; works on any device, without signing in. */
 export function OrderTickets({ token }: { token: string }) {
@@ -53,6 +54,18 @@ export function OrderTickets({ token }: { token: string }) {
             </li>
           ))}
         </ul>
+      )}
+      {order.data && order.data.order.vouchers.length > 0 && (
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">{t("concessions.title")}</h2>
+          <ul className="grid gap-4 sm:grid-cols-2">
+            {order.data.order.vouchers.map((voucher) => (
+              <li key={voucher.id}>
+                <VoucherCard voucher={voucher} />
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
       {order.data && <TicketPassExports tickets={order.data.order.tickets} />}
     </div>

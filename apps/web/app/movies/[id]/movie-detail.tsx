@@ -1,6 +1,6 @@
 "use client";
 
-import { CINEMA_TIME_ZONE } from "@sinema/shared";
+import { CINEMA_TIME_ZONE, groupBy, SHOW_FORMATS, type ShowFormat } from "@sinema/shared";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -20,7 +20,6 @@ const dayKey = (date: Date) =>
 export function MovieDetail({ id }: { id: string }) {
   const t = useTranslations();
   const format = useFormatter();
-  const price = usePrice();
   const now = useNow();
 
   const movie = useQuery({
@@ -43,7 +42,7 @@ export function MovieDetail({ id }: { id: string }) {
     );
   }
 
-  const days = Map.groupBy(showtimes.data?.showtimes ?? [], (s) => dayKey(new Date(s.startsAt)));
+  const days = groupBy(showtimes.data?.showtimes ?? [], (s) => dayKey(new Date(s.startsAt)));
   const today = dayKey(now);
   const tomorrow = dayKey(new Date(now.getTime() + 24 * 60 * 60 * 1000));
   const dayLabel = (key: string, first: Showtime) =>
@@ -93,28 +92,58 @@ export function MovieDetail({ id }: { id: string }) {
         {showtimes.data?.showtimes.length === 0 && (
           <p className="text-muted-foreground">{t("movie.noShowtimes")}</p>
         )}
-        {[...days].map(([key, list]) => (
-          <div key={key} className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground">{dayLabel(key, list[0]!)}</h3>
-            <ul className="flex flex-wrap gap-3">
-              {list.map((showtime) => (
-                <li key={showtime.id}>
-                  <Button variant="outline" className="h-auto flex-col items-start px-4 py-2" asChild>
-                    <Link href={`/showtimes/${showtime.id}`}>
-                      <span className="text-base font-semibold">
-                        {format.dateTime(new Date(showtime.startsAt), { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {showtime.hall.name} · {price(showtime.price)}
-                      </span>
-                    </Link>
-                  </Button>
-                </li>
+        {[...days].map(([key, list]) => {
+          // Within a day, one row per format (2D, 3D, IMAX, IMAX 3D), each with its own halls.
+          const byFormat = groupBy(list, (showtime) => showtime.format);
+          return (
+            <div key={key} className="space-y-4">
+              <h3 className="font-semibold">{dayLabel(key, list[0]!)}</h3>
+              {SHOW_FORMATS.filter((showFormat) => byFormat.has(showFormat)).map((showFormat) => (
+                <div key={showFormat} className="space-y-2">
+                  <FormatBadge format={showFormat} />
+                  <ul className="flex flex-wrap gap-3">
+                    {byFormat.get(showFormat)!.map((showtime) => (
+                      <li key={showtime.id}>
+                        <ShowtimeButton showtime={showtime} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ))}
-            </ul>
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </section>
     </div>
+  );
+}
+
+/** "2D" quiet, premium formats (3D, IMAX) in the brand colour. */
+export function FormatBadge({ format }: { format: ShowFormat }) {
+  const t = useTranslations("format");
+  return <Badge variant={format === "TWO_D" ? "secondary" : "default"}>{t(format)}</Badge>;
+}
+
+function ShowtimeButton({ showtime }: { showtime: Showtime }) {
+  const t = useTranslations("discounts");
+  const format = useFormatter();
+  const price = usePrice();
+  return (
+    <Button variant="outline" className="h-auto min-w-28 flex-col items-start gap-0.5 bg-card px-4 py-2" asChild>
+      <Link href={`/showtimes/${showtime.id}`}>
+        <span className="text-lg font-bold text-primary">
+          {format.dateTime(new Date(showtime.startsAt), { hour: "2-digit", minute: "2-digit" })}
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {showtime.hall.name} · {price(showtime.price)}
+          {showtime.discount && <s className="ml-1">{price(showtime.basePrice)}</s>}
+        </span>
+        {showtime.discount && (
+          <span className="text-xs font-semibold text-green-600 dark:text-green-400">
+            {t(showtime.discount.kind, { percent: showtime.discount.percent })}
+          </span>
+        )}
+      </Link>
+    </Button>
   );
 }
