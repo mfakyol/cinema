@@ -22,7 +22,16 @@ function safeNext(next: string | undefined): string {
   return next?.startsWith("/") && !next.startsWith("//") ? next : "/";
 }
 
-export function AuthForm({ mode, next }: { mode: Mode; next?: string }) {
+/** `demoEmail` is the seeded account shown under the form, e.g. the admin one in /admin. */
+export function AuthForm({
+  mode,
+  next,
+  demoEmail = "customer@sinema.test",
+}: {
+  mode: Mode;
+  next?: string;
+  demoEmail?: string;
+}) {
   const t = useTranslations();
   const errorMessage = useErrorMessage();
   const router = useRouter();
@@ -106,7 +115,7 @@ export function AuthForm({ mode, next }: { mode: Mode; next?: string }) {
           </p>
           {mode === "login" && (
             <p className="text-center text-xs text-muted-foreground">
-              {t("auth.demoHint", { email: "customer@sinema.test", password: "demo1234" })}
+              {t("auth.demoHint", { email: demoEmail, password: "demo1234" })}
             </p>
           )}
         </form>

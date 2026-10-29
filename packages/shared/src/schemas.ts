@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { cardSchema } from "./cards.js";
-import { MAX_ITEM_QUANTITY, MAX_LOCKS_PER_HOLDER } from "./constants.js";
+import { LayoutError, seatsFromLayout } from "./layouts.js";
+import { MAX_ITEM_QUANTITY, MAX_LOCKS_PER_HOLDER, SHOW_FORMATS, type ShowFormat } from "./constants.js";
 import { LOCALES } from "./i18n.js";
 
 export const registerSchema = z.object({
@@ -74,3 +75,51 @@ export const scanSchema = z.object({
   qrToken: z.string().min(1).max(500),
 });
 export type ScanInput = z.infer<typeof scanSchema>;
+
+/** A hall layout as an admin saves it: a name and rows of S (seat), W (wheelchair), _ (aisle). */
+export const layoutSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80),
+    rows: z
+      .array(
+        z.object({
+          label: z.string().trim().min(1).max(3),
+          cells: z.string().regex(/^[SW_]{1,60}$/),
+        }),
+      )
+      .min(1)
+      .max(40),
+  })
+  .superRefine(({ rows }, ctx) => {
+    try {
+      seatsFromLayout(rows);
+    } catch (error) {
+      if (error instanceof LayoutError) ctx.addIssue({ code: "custom", path: ["rows"], message: error.message });
+      else throw error;
+    }
+  });
+export type LayoutInput = z.infer<typeof layoutSchema>;
+
+const formatsSchema = z
+  .array(z.enum(SHOW_FORMATS as [ShowFormat, ...ShowFormat[]]))
+  .min(1)
+  .refine((formats) => new Set(formats).size === formats.length, "Formats repeat");
+
+/** A new hall: its name, the formats it can show and, optionally, the layout to build it from. */
+export const hallCreateSchema = z.object({
+  name: z.string().trim().min(1).max(60),
+  formats: formatsSchema,
+  layoutId: z.uuid().optional(),
+});
+export type HallCreateInput = z.infer<typeof hallCreateSchema>;
+
+/** Renaming a hall or changing its formats. */
+export const hallUpdateSchema = z
+  .object({ name: z.string().trim().min(1).max(60), formats: formatsSchema })
+  .partial()
+  .refine((input) => Object.keys(input).length > 0, "Nothing to change");
+export type HallUpdateInput = z.infer<typeof hallUpdateSchema>;
+
+/** Rebuilding a hall's seats from a layout. */
+export const hallLayoutSchema = z.object({ layoutId: z.uuid() });
+

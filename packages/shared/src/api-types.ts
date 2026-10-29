@@ -1,3 +1,4 @@
+import type { LayoutRow } from "./layouts.js";
 import type { ProductCategory, SeatState, ShowFormat } from "./constants.js";
 import type { Locale } from "./i18n.js";
 import type { Discount } from "./pricing.js";
@@ -30,6 +31,28 @@ export interface ScheduledShowtime extends Showtime {
   movie: Pick<Movie, "id" | "title" | "durationMin" | "genre" | "posterUrl">;
   /** Seats neither sold nor held right now. */
   seatsLeft: number;
+}
+
+/** A layout in the admin panel, with how many seats it makes and how many halls use it. */
+export interface AdminLayout {
+  id: string;
+  name: string;
+  rows: LayoutRow[];
+  seatCount: number;
+  hallCount: number;
+}
+
+/** A hall in the admin panel. */
+export interface AdminHall {
+  id: string;
+  name: string;
+  formats: ShowFormat[];
+  layout: { id: string; name: string } | null;
+  seatCount: number;
+  /** Showtimes that have not started yet. */
+  upcomingShowtimes: number;
+  /** Seats were ever sold here, so the plan can no longer change. */
+  hasSales: boolean;
 }
 
 export interface SeatMapSeat {

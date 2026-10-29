@@ -3,6 +3,7 @@ import express, { type ErrorRequestHandler } from "express";
 import { prisma } from "./db.js";
 import { HttpError } from "./lib/http-error.js";
 import { authenticate } from "./middleware/auth.js";
+import { adminRouter } from "./routes/admin.js";
 import { authRouter } from "./routes/auth.js";
 import { checkoutRouter } from "./routes/checkout.js";
 import { concessionsRouter, productsRouter } from "./routes/concessions.js";
@@ -56,6 +57,7 @@ export function createApp() {
   api.use("/concessions", concessionsRouter);
   api.use("/checkout", checkoutRouter);
   api.use("/webhooks", webhooksRouter);
+  api.use("/admin", adminRouter);
   api.use("/orders", ordersRouter);
   api.use("/me", meRouter);
   api.use("/tickets", ticketsRouter);

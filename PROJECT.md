@@ -188,7 +188,12 @@ REST endpoints live under `/api`; real-time events go to per-showtime rooms.
 | POST | /concessions/collect | Hand an item over at the stand | Staff |
 | GET | /tickets/:qrToken/qr.png | A ticket's QR code as an image, for emails | Code holder |
 | POST | /tickets/verify | Check a QR code, mark the ticket used | Staff |
-| CRUD | /admin/movies, /admin/halls, /admin/showtimes | Administration | Admin |
+| GET, POST | /admin/layouts | List layouts (with seats and halls using them), create one | Admin |
+| GET, PUT, DELETE | /admin/layouts/:id | One layout; save it; delete it unless halls use it | Admin |
+| GET, POST | /admin/halls | List halls (seats, upcoming showtimes, sales), create one, optionally from a layout | Admin |
+| PATCH | /admin/halls/:id | Rename, change formats (not ones upcoming showtimes use) | Admin |
+| PUT | /admin/halls/:id/layout | Rebuild a hall's seats from a layout; refused once it has sales | Admin |
+| CRUD | /admin/movies, /admin/showtimes | Administration (next) | Admin |
 | GET | /admin/reports/sales | Sales and occupancy report | Admin |
 
 Socket.io:
