@@ -1,11 +1,10 @@
 "use client";
 
-import { type AdminHall, type AdminLayout, SHOW_FORMATS, type ShowFormat } from "@sinema/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { AdminHall, AdminLayout, ShowFormat } from "@sinema/shared";
+import { useQuery } from "@tanstack/react-query";
 import { Lock, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { toast } from "sonner";
 import { LoadError } from "@/components/load-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,63 +13,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiFetch } from "@/lib/api";
-import { useErrorMessage } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { FormatPicker, selectClass, useAdminMutation } from "../admin-ui";
 import { layoutsQuery } from "../layouts/layout-list";
 
-const hallsQuery = {
+export const hallsQuery = {
   queryKey: ["admin", "halls"],
   queryFn: () => apiFetch<{ halls: AdminHall[] }>("/admin/halls"),
 };
-
-const selectClass =
-  "h-9 rounded-lg border border-input bg-background px-2 text-sm focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50";
-
-/** Toggle buttons for the formats a hall can show. */
-function FormatPicker({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: ShowFormat[];
-  onChange: (formats: ShowFormat[]) => void;
-  disabled?: boolean;
-}) {
-  const t = useTranslations();
-  return (
-    <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("admin.formats")}>
-      {SHOW_FORMATS.map((format) => {
-        const on = value.includes(format);
-        return (
-          <Button
-            key={format}
-            type="button"
-            size="sm"
-            variant={on ? "default" : "outline"}
-            aria-pressed={on}
-            disabled={disabled || (on && value.length === 1)}
-            onClick={() => onChange(on ? value.filter((f) => f !== format) : SHOW_FORMATS.filter((f) => f === format || value.includes(f)))}
-          >
-            {t(`format.${format}`)}
-          </Button>
-        );
-      })}
-    </div>
-  );
-}
-
-function useAdminMutation<TInput>(request: (input: TInput) => Promise<unknown>, success: string) {
-  const queryClient = useQueryClient();
-  const errorMessage = useErrorMessage();
-  return useMutation({
-    mutationFn: request,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["admin"] });
-      toast.success(success);
-    },
-    onError: (error) => toast.error(errorMessage(error)),
-  });
-}
 
 /** One hall: its name, formats and layout, each saved on its own. */
 function HallRow({ hall, layouts }: { hall: AdminHall; layouts: AdminLayout[] }) {

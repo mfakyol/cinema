@@ -43,14 +43,19 @@ export function OrderTickets({ token }: { token: string }) {
           <p className="text-muted-foreground">{t("order.sentTo", { email: order.data.order.email })}</p>
         )}
       </div>
-      {order.data && <OrderActions order={order.data.order} />}
+      {order.data?.order.status === "REFUNDED" && (
+        <Alert variant="destructive">
+          <AlertDescription>{t("order.refunded", { reason: order.data.order.refundReason ?? "" })}</AlertDescription>
+        </Alert>
+      )}
+      {order.data && order.data.order.status !== "REFUNDED" && <OrderActions order={order.data.order} />}
       {order.isPending ? (
         <Skeleton className="h-48 w-full" />
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2">
           {order.data.order.tickets.map((ticket) => (
             <li key={ticket.id}>
-              <TicketCard ticket={ticket} actions={<TicketActions ticket={ticket} />} />
+              <TicketCard ticket={ticket} actions={ticket.status === "CANCELLED" ? undefined : <TicketActions ticket={ticket} />} />
             </li>
           ))}
         </ul>
@@ -67,7 +72,7 @@ export function OrderTickets({ token }: { token: string }) {
           </ul>
         </section>
       )}
-      {order.data && <TicketPassExports tickets={order.data.order.tickets} />}
+      {order.data && order.data.order.status !== "REFUNDED" && <TicketPassExports tickets={order.data.order.tickets} />}
     </div>
   );
 }

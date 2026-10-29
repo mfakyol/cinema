@@ -86,3 +86,10 @@ export async function ensureSessionToken(): Promise<string> {
 export function useSession(): Session | null {
   return useSyncExternalStore(subscribe, read, () => null);
 }
+
+const never = () => () => {};
+
+/** False during the server render and hydration, before the stored session can be read. */
+export function useSessionKnown(): boolean {
+  return useSyncExternalStore(never, () => true, () => false);
+}

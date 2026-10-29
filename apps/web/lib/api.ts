@@ -62,7 +62,7 @@ export const postJson = <T>(path: string, data: unknown, headers?: Record<string
  * FAILED throws PAYMENT_DECLINED; still pending after `timeoutMs` throws PAYMENT_TIMEOUT.
  * Each call is one payment attempt with its own Idempotency-Key.
  */
-export async function checkoutAndWait<O extends { id: string; status: "PENDING" | "PAID" | "FAILED" }>(
+export async function checkoutAndWait<O extends { id: string; status: string }>(
   path: string,
   body: unknown,
   { intervalMs = 600, timeoutMs = 30_000 }: { intervalMs?: number; timeoutMs?: number } = {},
