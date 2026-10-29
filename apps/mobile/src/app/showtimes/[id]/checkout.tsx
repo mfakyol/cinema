@@ -1,10 +1,11 @@
-import type { Order, Product } from "@sinema/shared";
+import type { CardInput, Order, Product } from "@sinema/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Alert, View } from "react-native";
 import { useFormatter, useLocale, useTranslations } from "use-intl";
 import { checkoutAndWait } from "@sinema/client";
+import { CardForm, initialCard, validCard } from "@/components/card-form";
 import { PurchaseSteps } from "@/components/purchase-steps";
 import { BottomBar, Button, Card, Loading, Notice, Screen, Text } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -13,8 +14,6 @@ import { useErrorMessage, usePrice } from "@/lib/format";
 import { useSession } from "@/lib/session";
 import { spacing, useColors } from "@/lib/theme";
 import { useSeatHold } from "@/lib/use-seat-hold";
-
-/** A fresh key per payment attempt; a retry of the same request would reuse it. */
 
 /** Step 3 of 3: the basket (tickets and items), the total, and payment. */
 export default function CheckoutStep() {
@@ -40,8 +39,12 @@ export default function CheckoutStep() {
     .filter((product) => cart.quantities.has(product.id))
     .map((product) => ({ product, quantity: cart.quantities.get(product.id)! }));
 
+  // Filled with the approved test card; the declined one is a tap away.
+  const [card, setCard] = useState<CardInput>(initialCard);
+  const readyCard = validCard(card);
+
   const pay = useMutation({
-    mutationFn: (simulate: "success" | "decline") =>
+    mutationFn: (payWith: CardInput) =>
       checkoutAndWait<Order>(api, "/checkout", {
         showtimeId: id,
         channel: "MOBILE",
@@ -49,7 +52,7 @@ export default function CheckoutStep() {
         email: session!.user.email,
         locale,
         items: lines.map(({ product, quantity }) => ({ productId: product.id, quantity })),
-        simulate,
+        card: payWith,
       }),
     onSuccess: (order) => {
       setPurchased(order);
@@ -154,20 +157,15 @@ export default function CheckoutStep() {
           </Card>
         )}
 
+        {!holdLost && <CardForm card={card} onChange={setCard} />}
         {session && <Text variant="small">{t("checkout.sendTo", { email: session.user.email })}</Text>}
-        <Button
-          title={t("seats.payDeclined")}
-          variant="ghost"
-          disabled={holdLost || pay.isPending}
-          onPress={() => pay.mutate("decline")}
-        />
       </Screen>
       <BottomBar>
         <Button
           title={t("seats.pay", { amount: price(total) })}
-          disabled={holdLost || !session}
-          loading={pay.isPending && pay.variables === "success"}
-          onPress={() => pay.mutate("success")}
+          disabled={holdLost || !session || !readyCard}
+          loading={pay.isPending}
+          onPress={() => readyCard && pay.mutate(readyCard)}
         />
       </BottomBar>
     </View>
