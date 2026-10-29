@@ -16,5 +16,38 @@ services:
       timeout: 3s
       retries: 10
 
+  # Seat holds, caches, rate limits and the Socket.io adapter. Expired-key events are on so the
+  # API can tell everyone when a seat hold runs out.
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--notify-keyspace-events", "Ex"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Events from the outbox (ticket.issued) to the workers. Management UI on :15672 (sinema / sinema).
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: sinema
+      RABBITMQ_DEFAULT_PASS: sinema
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   db-data:
+  rabbitmq-data:

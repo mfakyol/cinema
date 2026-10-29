@@ -2,6 +2,8 @@ import "dotenv/config";
 import { existsSync, readFileSync } from "node:fs";
 import { type LayoutRow, seatsFromLayout } from "@sinema/shared";
 import { prisma } from "../src/db.js";
+import { invalidate } from "../src/infra/cache.js";
+import { closeRedis } from "../src/infra/redis.js";
 import { lockPinFor } from "../src/lib/lock-pin.js";
 import { hashPassword } from "../src/lib/password.js";
 
@@ -167,7 +169,6 @@ async function main() {
   await prisma.product.deleteMany();
   await prisma.ticket.deleteMany();
   await prisma.order.deleteMany();
-  await prisma.seatLock.deleteMany();
   await prisma.showtime.deleteMany();
   await prisma.seat.deleteMany();
   await prisma.hall.deleteMany();
@@ -236,6 +237,9 @@ async function main() {
     data: PRODUCTS.map((product, sortOrder) => ({ ...product, sortOrder })),
   });
 
+  // Cached showtime lists and seat maps described the old schedule.
+  await invalidate("showtimes");
+
   console.log(
     `Seeded 3 users, ${Object.keys(LAYOUTS).length} layouts, ${halls.length} halls, ` +
       `${movies.length} movies, ${showtimes.length} showtimes, ${PRODUCTS.length} products.`,
@@ -247,4 +251,4 @@ main()
     console.error(error);
     process.exitCode = 1;
   })
-  .finally(() => prisma.$disconnect());
+  .finally(() => Promise.all([prisma.$disconnect(), closeRedis()]));

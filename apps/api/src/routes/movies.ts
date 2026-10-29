@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { seatPricing } from "@sinema/shared";
 import { prisma } from "../db.js";
 import { HttpError } from "../lib/http-error.js";
+import { listMovieShowtimes } from "../services/showtime-lists.js";
 
 export const moviesRouter = Router();
 
@@ -19,18 +19,5 @@ moviesRouter.get("/:id", async (req, res) => {
 moviesRouter.get("/:id/showtimes", async (req, res) => {
   const movie = await prisma.movie.findUnique({ where: { id: req.params.id } });
   if (!movie) throw new HttpError(404, "NOT_FOUND", "Movie not found");
-  const showtimes = await prisma.showtime.findMany({
-    where: { movieId: movie.id, startsAt: { gt: new Date() } },
-    include: { hall: { select: { id: true, name: true } } },
-    orderBy: { startsAt: "asc" },
-  });
-  res.json({
-    showtimes: showtimes.map(({ id, startsAt, price, format, hall }) => ({
-      id,
-      startsAt,
-      format,
-      hall,
-      ...seatPricing({ price, startsAt }),
-    })),
-  });
+  res.json({ showtimes: await listMovieShowtimes(movie.id) });
 });

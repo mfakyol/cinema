@@ -58,16 +58,16 @@ enum SalesChannel {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  role         Role     @default(CUSTOMER)
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  name          String
+  role          Role     @default(CUSTOMER)
   /// Box-office lock PIN (staff and admin): a salt and SHA-256 digest the box office checks
   /// typed PINs against; see apps/api/src/lib/lock-pin.ts.
   lockPinSalt   String?
   lockPinDigest String?
-  createdAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
 
   orders  Order[]
   tickets Ticket[]
@@ -107,8 +107,7 @@ model Seat {
   column Int      @default(0)
   type   SeatType @default(STANDARD)
 
-  hall    Hall       @relation(fields: [hallId], references: [id], onDelete: Cascade)
-  locks   SeatLock[]
+  hall    Hall     @relation(fields: [hallId], references: [id], onDelete: Cascade)
   tickets Ticket[]
 
   @@unique([hallId, row, number])
@@ -123,54 +122,51 @@ model Showtime {
   price    Int
   format   ShowFormat @default(TWO_D)
 
-  movie   Movie      @relation(fields: [movieId], references: [id])
-  hall    Hall       @relation(fields: [hallId], references: [id])
-  locks   SeatLock[]
+  movie   Movie    @relation(fields: [movieId], references: [id])
+  hall    Hall     @relation(fields: [hallId], references: [id])
   tickets Ticket[]
+  orders  Order[]
 
   @@index([hallId, startsAt])
+  /// The box office's day listing and the website's "upcoming" lists filter on start time.
+  @@index([startsAt])
+  @@index([movieId, startsAt])
 }
 
-/// A temporary hold on a seat while the holder pays. Rows past expiresAt are stale.
-model SeatLock {
-  id         String   @id @default(uuid())
-  showtimeId String
-  seatId     String
-  /// User id, or a kiosk session id for guest purchases.
-  holderId   String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-
-  showtime Showtime @relation(fields: [showtimeId], references: [id], onDelete: Cascade)
-  seat     Seat     @relation(fields: [seatId], references: [id])
-
-  @@unique([showtimeId, seatId])
-  @@index([holderId])
-  @@index([expiresAt])
-}
-
-/// One payment; groups the tickets bought together.
+/// One payment; groups the tickets bought together. A card payment is confirmed later by the
+/// provider's webhook, so a PENDING order carries what to issue then: the showtime, the held
+/// seats and the seat price at checkout. Status only moves PENDING -> PAID or PENDING -> FAILED,
+/// always with a conditional UPDATE.
 model Order {
-  id             String      @id @default(uuid())
-  holderId       String
-  userId         String?
+  id            String        @id @default(uuid())
+  holderId      String
+  userId        String?
   /// Total in cents.
-  amount         Int
-  status         OrderStatus @default(PENDING)
-  provider       String
+  amount        Int
+  status        OrderStatus   @default(PENDING)
+  provider      String
   /// Box-office sales may be paid in cash; everything else is a card payment.
-  paymentMethod  PaymentMethod @default(CARD)
-  providerRef    String?
-  idempotencyKey String      @unique
+  paymentMethod PaymentMethod @default(CARD)
+  providerRef   String?
+  showtimeId    String
+  seatIds       String[]
+  /// Seat price in cents after any discount, fixed at checkout.
+  seatPrice     Int
+  channel       SalesChannel
+  /// Language of the confirmation email.
+  locale        String        @default("en")
   /// Where the tickets and the order link are emailed; box-office buyers may skip it.
-  contactEmail   String?
+  contactEmail  String?
   /// Unguessable token in the order link, which shows the QR codes without signing in.
-  accessToken    String      @unique
-  createdAt      DateTime    @default(now())
+  accessToken   String        @unique
+  createdAt     DateTime      @default(now())
 
-  user    User?       @relation(fields: [userId], references: [id])
-  tickets Ticket[]
-  items   OrderItem[]
+  user     User?       @relation(fields: [userId], references: [id])
+  showtime Showtime    @relation(fields: [showtimeId], references: [id])
+  tickets  Ticket[]
+  items    OrderItem[]
+
+  @@index([holderId])
 }
 
 /// Unique (showtimeId, seatId) among non-cancelled tickets is a partial index
@@ -251,4 +247,95 @@ model HallLayout {
   name  String @unique
   rows  Json
   halls Hall[]
+}
+
+enum IdempotencyStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+/// One per Idempotency-Key a caller sent. The first request inserts the row and does the work;
+/// a repeat returns the stored response, or 409 while the first is still running. The request
+/// hash catches a key reused for a different request.
+model IdempotencyKey {
+  holderId       String            @map("holder_id")
+  key            String
+  requestHash    String            @map("request_hash")
+  status         IdempotencyStatus @default(IN_PROGRESS)
+  responseStatus Int?              @map("response_status")
+  responseBody   Json?             @map("response_body")
+  createdAt      DateTime          @default(now()) @map("created_at")
+
+  @@id([holderId, key])
+  @@index([createdAt])
+  @@map("idempotency_keys")
+}
+
+/// A payment provider event already handled. Inserted with ON CONFLICT DO NOTHING in the same
+/// transaction as the order update, so a redelivered webhook changes nothing.
+model ProcessedWebhook {
+  provider   String
+  eventId    String   @map("event_id")
+  type       String
+  receivedAt DateTime @default(now()) @map("received_at")
+
+  @@id([provider, eventId])
+  @@map("processed_webhooks")
+}
+
+/// A message a consumer already handled, keyed by the outbox row id. Written in the same
+/// transaction as the consumer's work; the message is acked only after the commit.
+model ProcessedMessage {
+  consumer    String
+  messageId   String   @map("message_id")
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@id([consumer, messageId])
+  @@map("processed_messages")
+}
+
+/// Events written in the same transaction as the change they describe, then published to
+/// RabbitMQ by the relay, which marks them published. Unpublished rows have a partial index
+/// (added by hand in the migration).
+model OutboxEvent {
+  id          String    @id @default(uuid())
+  type        String
+  payload     Json
+  createdAt   DateTime  @default(now()) @map("created_at")
+  publishedAt DateTime? @map("published_at")
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error")
+
+  @@map("outbox")
+}
+
+enum PrintJobStatus {
+  QUEUED
+  PRINTED
+}
+
+/// A box-office ticket to print. Holds only the ticket reference; the printout is drawn from
+/// the ticket when the printer takes the job.
+model PrintJob {
+  id        String         @id @default(uuid())
+  ticketId  String         @unique @map("ticket_id")
+  status    PrintJobStatus @default(QUEUED)
+  createdAt DateTime       @default(now()) @map("created_at")
+  printedAt DateTime?      @map("printed_at")
+
+  @@map("print_jobs")
+}
+
+/// Sales per cinema day and channel, kept up to date by the stats worker.
+model DailySales {
+  day     DateTime     @db.Date
+  channel SalesChannel
+  orders  Int          @default(0)
+  tickets Int          @default(0)
+  items   Int          @default(0)
+  /// Revenue in cents.
+  revenue Int          @default(0)
+
+  @@id([day, channel])
+  @@map("daily_sales")
 }

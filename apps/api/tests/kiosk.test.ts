@@ -1,15 +1,12 @@
-import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "../src/db.js";
+import { showtimeHolds } from "../src/holds/seat-holds.js";
 import { mailer } from "../src/notifications/index.js";
-import { api, bearer, createFixture, createUser, guestToken, lock } from "./helpers.js";
+import { api, checkout, createFixture, createUser, guestToken, lock, runWorkers } from "./helpers.js";
 
-function kioskCheckout(token: string, showtimeId: string, extra: Record<string, unknown> = {}) {
-  return api()
-    .post("/api/checkout/kiosk")
-    .set(bearer(token))
-    .send({ showtimeId, idempotencyKey: randomUUID(), ...extra });
-}
+/** A box-office sale through the whole flow: cash settles at once, a card through the webhook. */
+const kioskCheckout = (token: string, showtimeId: string, extra: Record<string, unknown> = {}) =>
+  checkout(token, showtimeId, extra, { path: "/api/checkout/kiosk" });
 
 describe("box-office sales", () => {
   afterEach(() => {
@@ -43,6 +40,9 @@ describe("box-office sales", () => {
 
     const res = await kioskCheckout(token, showtime.id, { email: "walk-in@test.local" }).expect(201);
     expect(res.body.order).toMatchObject({ paymentMethod: "CARD", contactEmail: "walk-in@test.local" });
+    // The email goes out from the worker, after the sale.
+    expect(send).not.toHaveBeenCalled();
+    await runWorkers();
     expect(send).toHaveBeenCalledOnce();
   });
 
@@ -53,7 +53,7 @@ describe("box-office sales", () => {
 
     const res = await kioskCheckout(token, showtime.id, { simulate: "decline" }).expect(402);
     expect(res.body.error.code).toBe("PAYMENT_DECLINED");
-    expect(await prisma.seatLock.count({ where: { showtimeId: showtime.id } })).toBe(1);
+    expect(await showtimeHolds(showtime.id)).toHaveLength(1);
   });
 
   it("is for staff only", async () => {

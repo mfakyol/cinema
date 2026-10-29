@@ -18,10 +18,13 @@ pnpm db:up
 pnpm db:migrate
 pnpm db:seed
 pnpm dev:api
+pnpm dev:worker
 pnpm dev:web
 ```
 
 The API serves `http://localhost:4000/api/health` and the website opens at `http://localhost:3000`.
+
+`pnpm db:up` starts PostgreSQL, Redis and RabbitMQ. The worker relays the outbox to RabbitMQ and runs the consumers (email, box-office printing, sales stats); without it sales still complete, and their follow-up work waits in the outbox until it runs. The RabbitMQ management UI is at `http://localhost:15672` (sinema / sinema). Tests need all three services running.
 
 The website picks English or Turkish from the browser's language and light or dark from the operating system theme. Set `NEXT_PUBLIC_API_URL` in `apps/web/.env.local` when the API is not on `http://localhost:4000`, and `NEXT_PUBLIC_SITE_URL` to the website's public address so ticket QR codes link there; it must match the API's `WEB_URL`.
 

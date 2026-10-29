@@ -1,20 +1,20 @@
-import { groupBy, MAX_LOCKS_PER_HOLDER, SEAT_LOCK_TTL_MS, SocketEvent } from "@sinema/shared";
-import { isUniqueViolation, prisma } from "../db.js";
+import { groupBy, MAX_LOCKS_PER_HOLDER, SocketEvent } from "@sinema/shared";
+import { prisma } from "../db.js";
+import { heldBy, holdId, holdSeats, parseHoldId, releaseHolds } from "../holds/seat-holds.js";
 import { HttpError } from "../lib/http-error.js";
 import { emitToShowtime } from "../realtime.js";
 
 /**
- * Locks seats for a holder. The unique (showtimeId, seatId) constraint on SeatLock is what
- * stops two holders from winning the same seat; the checks before it only give clearer errors.
+ * Holds seats for a holder for 10 minutes (see holds/seat-holds.ts). Checks here only give
+ * clearer errors; the hold itself is one atomic Redis step that either takes every seat or none.
  *
- * A holder buys for one showtime at a time: locking seats in a showtime releases whatever
- * they still hold in any other, so seats left behind when switching showtimes free up at once.
+ * A holder buys for one showtime at a time: holding seats in a showtime releases whatever they
+ * still hold in any other, so seats left behind when switching showtimes free up at once.
  */
 export async function lockSeats(holderId: string, showtimeId: string, seatIds: string[]) {
-  const now = new Date();
   const showtime = await prisma.showtime.findUnique({ where: { id: showtimeId } });
   if (!showtime) throw new HttpError(404, "NOT_FOUND", "Showtime not found");
-  if (showtime.startsAt <= now) {
+  if (showtime.startsAt <= new Date()) {
     throw new HttpError(409, "SHOWTIME_STARTED", "This showtime has already started");
   }
 
@@ -23,88 +23,33 @@ export async function lockSeats(holderId: string, showtimeId: string, seatIds: s
   if (seatCount !== ids.length) {
     throw new HttpError(400, "INVALID_SEAT", "Some seats are not in this showtime's hall");
   }
+  const sold = await prisma.ticket.count({
+    where: { showtimeId, seatId: { in: ids }, status: { not: "CANCELLED" } },
+  });
+  if (sold > 0) throw new HttpError(409, "SEAT_TAKEN", "Some seats are already sold");
 
-  const expiresAt = new Date(now.getTime() + SEAT_LOCK_TTL_MS);
-  let locks;
-  let abandoned: { showtimeId: string; seatId: string }[] = [];
-  try {
-    locks = await prisma.$transaction(async (tx) => {
-      abandoned = await tx.seatLock.findMany({
-        where: { holderId, showtimeId: { not: showtimeId } },
-        select: { showtimeId: true, seatId: true },
-      });
-      if (abandoned.length > 0) {
-        await tx.seatLock.deleteMany({ where: { holderId, showtimeId: { not: showtimeId } } });
-      }
-
-      // Expired locks no longer hold their seat; clear them so the insert below can claim it.
-      await tx.seatLock.deleteMany({
-        where: { showtimeId, seatId: { in: ids }, expiresAt: { lte: now } },
-      });
-
-      const sold = await tx.ticket.count({
-        where: { showtimeId, seatId: { in: ids }, status: { not: "CANCELLED" } },
-      });
-      if (sold > 0) throw new HttpError(409, "SEAT_TAKEN", "Some seats are already sold");
-
-      const held = await tx.seatLock.count({ where: { holderId, showtimeId, expiresAt: { gt: now } } });
-      if (held + ids.length > MAX_LOCKS_PER_HOLDER) {
-        throw new HttpError(
-          409,
-          "LOCK_LIMIT",
-          `You can hold at most ${MAX_LOCKS_PER_HOLDER} seats at a time`,
-        );
-      }
-
-      const created = [];
-      for (const seatId of ids) {
-        created.push(
-          await tx.seatLock.create({ data: { showtimeId, seatId, holderId, expiresAt } }),
-        );
-      }
-      return created;
-    });
-  } catch (error) {
-    if (isUniqueViolation(error)) {
-      throw new HttpError(409, "SEAT_TAKEN", "Some seats are already locked by someone else");
-    }
-    throw error;
+  const result = await holdSeats(holderId, showtimeId, ids);
+  if (!result.ok) {
+    throw result.reason === "TAKEN"
+      ? new HttpError(409, "SEAT_TAKEN", "Some seats are already held by someone else")
+      : new HttpError(409, "LOCK_LIMIT", `You can hold at most ${MAX_LOCKS_PER_HOLDER} seats at a time`);
   }
 
-  for (const [otherShowtimeId, released] of groupBy(abandoned, (lock) => lock.showtimeId)) {
-    emitToShowtime(otherShowtimeId, SocketEvent.SEAT_RELEASED, { seatIds: released.map((lock) => lock.seatId) });
+  for (const [otherShowtimeId, released] of groupBy(result.released, (hold) => hold.showtimeId)) {
+    emitToShowtime(otherShowtimeId, SocketEvent.SEAT_RELEASED, { seatIds: released.map((hold) => hold.seatId) });
   }
-  emitToShowtime(showtimeId, SocketEvent.SEAT_LOCKED, { seatIds: ids, expiresAt });
-  return locks.map(({ id, seatId, expiresAt }) => ({ id, seatId, expiresAt }));
+  emitToShowtime(showtimeId, SocketEvent.SEAT_LOCKED, { seatIds: ids, expiresAt: result.expiresAt });
+
+  const mine = await heldBy(holderId, showtimeId);
+  return mine
+    .filter((hold) => ids.includes(hold.seatId))
+    .map((hold) => ({ id: holdId(showtimeId, hold.seatId), seatId: hold.seatId, expiresAt: hold.expiresAt }));
 }
 
+/** Releases one hold by its id; someone else's hold looks the same as a missing one. */
 export async function releaseLock(holderId: string, lockId: string) {
-  const lock = await prisma.seatLock.findUnique({ where: { id: lockId } });
-  // Someone else's lock looks the same as a missing one, so lock ids reveal nothing.
-  if (!lock || lock.holderId !== holderId) {
-    throw new HttpError(404, "NOT_FOUND", "Lock not found");
-  }
-  await prisma.seatLock.delete({ where: { id: lockId } });
-  emitToShowtime(lock.showtimeId, SocketEvent.SEAT_RELEASED, { seatIds: [lock.seatId] });
-}
-
-/** Deletes expired locks and tells each showtime's room. Runs on an interval in the server. */
-export async function releaseExpiredLocks(now = new Date()): Promise<number> {
-  const expired = await prisma.seatLock.findMany({
-    where: { expiresAt: { lte: now } },
-    select: { id: true, showtimeId: true, seatId: true },
-  });
-  if (expired.length === 0) return 0;
-
-  await prisma.seatLock.deleteMany({
-    where: { id: { in: expired.map((lock) => lock.id) }, expiresAt: { lte: now } },
-  });
-
-  const seatsByShowtime = Map.groupBy(expired, (lock) => lock.showtimeId);
-  for (const [showtimeId, locks] of seatsByShowtime) {
-    emitToShowtime(showtimeId, SocketEvent.SEAT_RELEASED, {
-      seatIds: locks.map((lock) => lock.seatId),
-    });
-  }
-  return expired.length;
+  const parsed = parseHoldId(lockId);
+  const released = parsed ? await releaseHolds(holderId, parsed.showtimeId, [parsed.seatId]) : [];
+  if (!parsed || released.length === 0) throw new HttpError(404, "NOT_FOUND", "Lock not found");
+  emitToShowtime(parsed.showtimeId, SocketEvent.SEAT_RELEASED, { seatIds: released });
 }

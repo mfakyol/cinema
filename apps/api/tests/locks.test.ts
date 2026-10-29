@@ -1,14 +1,11 @@
 import { MAX_LOCKS_PER_HOLDER } from "@sinema/shared";
 import { describe, expect, it } from "vitest";
+import { heldCounts, showtimeHolds } from "../src/holds/seat-holds.js";
 import { prisma } from "../src/db.js";
-import { releaseExpiredLocks } from "../src/services/locks.js";
-import { api, bearer, createFixture, createUser, guestToken, lock } from "./helpers.js";
+import { api, bearer, createFixture, createUser, expireHolds, guestToken, lock } from "./helpers.js";
 
-const expireAllLocks = () =>
-  prisma.seatLock.updateMany({ data: { expiresAt: new Date(Date.now() - 1000) } });
-
-describe("seat locks", () => {
-  it("locks seats and shows lock details only to the holder", async () => {
+describe("seat holds", () => {
+  it("holds seats and shows hold details only to the holder", async () => {
     const { showtime, seats } = await createFixture();
     const { token } = await createUser();
     const other = await createUser();
@@ -24,7 +21,17 @@ describe("seat locks", () => {
     expect(theirs.body.seats[0]).not.toHaveProperty("lockId");
   });
 
-  it("refuses a seat someone else holds", async () => {
+  it("holds a seat for ten minutes", async () => {
+    const { showtime, seats } = await createFixture();
+    const { token } = await createUser();
+    const before = Date.now();
+    const res = await lock(token, showtime.id, [seats[0]!.id]).expect(201);
+    const expiresAt = new Date(res.body.locks[0].expiresAt).getTime();
+    expect(expiresAt - before).toBeGreaterThanOrEqual(10 * 60 * 1000 - 1000);
+    expect(expiresAt - before).toBeLessThanOrEqual(10 * 60 * 1000 + 1000);
+  });
+
+  it("refuses a seat someone else holds, and takes none of the request", async () => {
     const { showtime, seats } = await createFixture();
     const first = await createUser();
     const second = await guestToken();
@@ -32,8 +39,8 @@ describe("seat locks", () => {
     await lock(first.token, showtime.id, [seats[0]!.id]).expect(201);
     const res = await lock(second, showtime.id, [seats[0]!.id, seats[1]!.id]).expect(409);
     expect(res.body.error.code).toBe("SEAT_TAKEN");
-    // The whole request fails, so the free seat in it stays free.
-    expect(await prisma.seatLock.count({ where: { seatId: seats[1]!.id } })).toBe(0);
+    // All or nothing: the free seat in the refused request stays free.
+    expect((await showtimeHolds(showtime.id)).map((hold) => hold.seatId)).toEqual([seats[0]!.id]);
   });
 
   it("lets exactly one of many concurrent requests win the same seat", async () => {
@@ -45,7 +52,7 @@ describe("seat locks", () => {
 
     expect(statuses.filter((status) => status === 201)).toHaveLength(1);
     expect(statuses.filter((status) => status === 409)).toHaveLength(tokens.length - 1);
-    expect(await prisma.seatLock.count({ where: { seatId: seats[0]!.id } })).toBe(1);
+    expect(await showtimeHolds(showtime.id)).toHaveLength(1);
   });
 
   it(`caps a holder at ${MAX_LOCKS_PER_HOLDER} seats`, async () => {
@@ -58,7 +65,7 @@ describe("seat locks", () => {
     expect(res.body.error.code).toBe("LOCK_LIMIT");
   });
 
-  it("releases a holder's seats in other showtimes when they lock in a new one", async () => {
+  it("releases a holder's seats in other showtimes when they hold in a new one", async () => {
     const first = await createFixture();
     const second = await createFixture();
     const { token } = await createUser();
@@ -67,33 +74,24 @@ describe("seat locks", () => {
     await lock(token, first.showtime.id, [first.seats[0]!.id, first.seats[1]!.id]).expect(201);
     await lock(token, second.showtime.id, [second.seats[0]!.id]).expect(201);
 
-    expect(await prisma.seatLock.count({ where: { showtimeId: first.showtime.id } })).toBe(0);
-    expect(await prisma.seatLock.count({ where: { showtimeId: second.showtime.id } })).toBe(1);
+    const counts = await heldCounts([first.showtime.id, second.showtime.id]);
+    expect(counts.get(first.showtime.id)).toBe(0);
+    expect(counts.get(second.showtime.id)).toBe(1);
     // The seats left behind are free for anyone straight away.
     await lock(other.token, first.showtime.id, [first.seats[0]!.id]).expect(201);
   });
 
-  it("lets another holder take a seat whose lock expired", async () => {
+  it("frees a seat by itself when its hold expires", async () => {
     const { showtime, seats } = await createFixture();
     const first = await createUser();
     const second = await createUser();
 
     await lock(first.token, showtime.id, [seats[0]!.id]).expect(201);
-    await expireAllLocks();
+    await expireHolds(showtime.id);
 
     const map = await api().get(`/api/showtimes/${showtime.id}/seats`);
     expect(map.body.seats[0].state).toBe("free");
     await lock(second.token, showtime.id, [seats[0]!.id]).expect(201);
-  });
-
-  it("sweeps expired locks", async () => {
-    const { showtime, seats } = await createFixture();
-    const { token } = await createUser();
-    await lock(token, showtime.id, [seats[0]!.id, seats[1]!.id]).expect(201);
-    await expireAllLocks();
-
-    expect(await releaseExpiredLocks()).toBe(2);
-    expect(await prisma.seatLock.count()).toBe(0);
   });
 
   it("rejects seats from another hall", async () => {
@@ -123,7 +121,7 @@ describe("seat locks", () => {
       .expect(401);
   });
 
-  it("releases a lock only for its holder", async () => {
+  it("releases a hold only for its holder", async () => {
     const { showtime, seats } = await createFixture();
     const holder = await createUser();
     const other = await createUser();
@@ -132,6 +130,16 @@ describe("seat locks", () => {
 
     await api().delete(`/api/locks/${lockId}`).set(bearer(other.token)).expect(404);
     await api().delete(`/api/locks/${lockId}`).set(bearer(holder.token)).expect(204);
-    expect(await prisma.seatLock.count()).toBe(0);
+    expect(await showtimeHolds(showtime.id)).toHaveLength(0);
+  });
+
+  it("limits how fast one caller can hold seats", async () => {
+    const { showtime, seats } = await createFixture();
+    const { token } = await createUser();
+    // 60 a minute are allowed; the same seat again just extends the hold.
+    for (let i = 0; i < 60; i++) await lock(token, showtime.id, [seats[0]!.id]).expect(201);
+    const limited = await lock(token, showtime.id, [seats[0]!.id]).expect(429);
+    expect(limited.body.error.code).toBe("RATE_LIMITED");
+    expect(Number(limited.headers["retry-after"])).toBeGreaterThan(0);
   });
 });

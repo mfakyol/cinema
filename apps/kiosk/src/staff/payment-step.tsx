@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Banknote, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "use-intl";
+import { checkoutAndWait } from "@sinema/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -53,16 +54,15 @@ export function PaymentStep({
 
   const charge = useMutation({
     mutationFn: (simulate: "success" | "decline") =>
-      api.post<{ order: Order }>("/checkout/kiosk", {
+      checkoutAndWait<Order>(api, "/checkout/kiosk", {
         showtimeId,
-        idempotencyKey: crypto.randomUUID(),
         email: draft.email || undefined,
         locale,
         items: lines.map(({ product, quantity }) => ({ productId: product.id, quantity })),
         payment: draft.payment,
         simulate,
       }),
-    onSuccess: ({ order }) => onSold(order),
+    onSuccess: (order) => onSold(order),
     onError: (error) => toast.error(errorMessage(error)),
     onSettled,
   });

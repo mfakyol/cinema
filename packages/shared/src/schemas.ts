@@ -28,8 +28,6 @@ export type LockSeatsInput = z.infer<typeof lockSeatsSchema>;
 
 export const checkoutSchema = z.object({
   showtimeId: z.uuid(),
-  /** Client-generated; repeating a checkout with the same key returns the same order. */
-  idempotencyKey: z.string().min(8).max(100),
   /** Ignored for guests, whose channel comes from their guest session. */
   channel: z.enum(["WEB", "MOBILE"]).default("WEB"),
   /** The tickets and the order link are sent here; guests have no account to hold them. */

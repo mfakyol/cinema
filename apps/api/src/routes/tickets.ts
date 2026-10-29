@@ -8,6 +8,7 @@ import { lockPinFor } from "../lib/lock-pin.js";
 import { hasValidSignature } from "../lib/qr.js";
 import { validate } from "../lib/validate.js";
 import { caller, requireAuth } from "../middleware/auth.js";
+import { rateLimit } from "../middleware/rate-limit.js";
 import { listHolderVouchers } from "../services/concessions.js";
 import { getTicketByQrToken, listHolderTickets, verifyTicket } from "../services/tickets.js";
 
@@ -34,7 +35,10 @@ meRouter.put("/pin", requireAuth("STAFF", "ADMIN"), async (req, res) => {
 
 export const ticketsRouter = Router();
 
-ticketsRouter.post("/verify", requireAuth("STAFF", "ADMIN"), async (req, res) => {
+/** A scanner reads a code a second at most; this only stops runaway clients and guessing. */
+const scanLimit = rateLimit({ name: "scan", limit: 120, windowSeconds: 60 });
+
+ticketsRouter.post("/verify", requireAuth("STAFF", "ADMIN"), scanLimit, async (req, res) => {
   const { qrToken } = validate(scanSchema, req.body);
   res.json({ ticket: await verifyTicket(qrToken) });
 });

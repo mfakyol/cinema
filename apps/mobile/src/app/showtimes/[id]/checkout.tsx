@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Alert, View } from "react-native";
 import { useFormatter, useLocale, useTranslations } from "use-intl";
+import { checkoutAndWait } from "@sinema/client";
 import { PurchaseSteps } from "@/components/purchase-steps";
 import { BottomBar, Button, Card, Loading, Notice, Screen, Text } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -14,7 +15,6 @@ import { spacing, useColors } from "@/lib/theme";
 import { useSeatHold } from "@/lib/use-seat-hold";
 
 /** A fresh key per payment attempt; a retry of the same request would reuse it. */
-const newIdempotencyKey = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 /** Step 3 of 3: the basket (tickets and items), the total, and payment. */
 export default function CheckoutStep() {
@@ -42,9 +42,8 @@ export default function CheckoutStep() {
 
   const pay = useMutation({
     mutationFn: (simulate: "success" | "decline") =>
-      api.post<{ order: Order }>("/checkout", {
+      checkoutAndWait<Order>(api, "/checkout", {
         showtimeId: id,
-        idempotencyKey: newIdempotencyKey(),
         channel: "MOBILE",
         // The app requires an account, so tickets go to the account's email.
         email: session!.user.email,
@@ -52,7 +51,7 @@ export default function CheckoutStep() {
         items: lines.map(({ product, quantity }) => ({ productId: product.id, quantity })),
         simulate,
       }),
-    onSuccess: ({ order }) => {
+    onSuccess: (order) => {
       setPurchased(order);
       cart.clear();
       void queryClient.invalidateQueries({ queryKey: ["tickets"] });

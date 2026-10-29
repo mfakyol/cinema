@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { type Order, postJson } from "@/lib/api";
+import { checkoutAndWait, type Order } from "@/lib/api";
 import { productsQuery } from "@/lib/basket";
 import { useCart } from "@/lib/cart";
 import { useErrorMessage, usePrice } from "@/lib/format";
@@ -47,16 +47,15 @@ export function CheckoutStep({ id }: { id: string }) {
 
   const pay = useMutation({
     mutationFn: (simulate: "success" | "decline") =>
-      postJson<{ order: Order }>("/checkout", {
+      checkoutAndWait<Order>("/checkout", {
         showtimeId: id,
-        idempotencyKey: crypto.randomUUID(),
         channel: "WEB",
         email,
         locale,
         items: lines.map(({ product, quantity }) => ({ productId: product.id, quantity })),
         simulate,
       }),
-    onSuccess: ({ order }) => {
+    onSuccess: (order) => {
       setPurchased(order);
       cart.clear();
       void queryClient.invalidateQueries({ queryKey: ["tickets"] });

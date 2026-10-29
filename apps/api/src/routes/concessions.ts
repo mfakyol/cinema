@@ -7,6 +7,7 @@ import { HttpError } from "../lib/http-error.js";
 import { hasValidSignature } from "../lib/qr.js";
 import { validate } from "../lib/validate.js";
 import { requireAuth } from "../middleware/auth.js";
+import { rateLimit } from "../middleware/rate-limit.js";
 import { collectVoucher, getVoucherByQrToken } from "../services/concessions.js";
 
 export const productsRouter = Router();
@@ -33,8 +34,11 @@ productsRouter.get("/", async (req, res) => {
 
 export const concessionsRouter = Router();
 
+/** A scanner reads a code a second at most; this only stops runaway clients and guessing. */
+const scanLimit = rateLimit({ name: "scan", limit: 120, windowSeconds: 60 });
+
 /** The stand hands an item over; staff and admins only. */
-concessionsRouter.post("/collect", requireAuth("STAFF", "ADMIN"), async (req, res) => {
+concessionsRouter.post("/collect", requireAuth("STAFF", "ADMIN"), scanLimit, async (req, res) => {
   const { qrToken } = validate(scanSchema, req.body);
   res.json({ voucher: await collectVoucher(qrToken) });
 });

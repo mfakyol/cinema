@@ -1,5 +1,5 @@
 /** How long a seat stays locked while the customer pays. */
-export const SEAT_LOCK_TTL_MS = 7 * 60 * 1000;
+export const SEAT_LOCK_TTL_MS = 10 * 60 * 1000;
 
 /** Maximum seats one user or kiosk session can hold at the same time. */
 export const MAX_LOCKS_PER_HOLDER = 10;

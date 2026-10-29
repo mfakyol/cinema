@@ -100,6 +100,10 @@
     "VOUCHER_CANCELLED": "Bu ürün iptal edilmiş.",
     "INVALID_PRODUCT": "Bazı ürünler artık satışta değil.",
     "GLASSES_NOT_3D": "3D gözlük sadece 3D gösterimler için satılır.",
+    "RATE_LIMITED": "Kısa sürede çok fazla deneme yapıldı. Biraz bekleyip tekrar dene.",
+    "IDEMPOTENCY_KEY_REUSED": "Bu ödeme denemesi gönderilirken değişti. Ödemeyi yeniden başlat.",
+    "REQUEST_IN_PROGRESS": "Ödemen zaten işleniyor. Lütfen bekle.",
+    "PAYMENT_TIMEOUT": "Ödeme her zamankinden uzun sürüyor. Tekrar denemeden önce biraz sonra biletlerine bak.",
     "generic": "Bir sorun oluştu. Lütfen tekrar dene."
   },
   "order": {

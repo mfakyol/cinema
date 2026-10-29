@@ -25,7 +25,7 @@ There are three roles: customer, staff and admin. The web, the customer app and 
 
 ## Stack
 
-TypeScript everywhere; the backend is Node + Express + PostgreSQL.
+TypeScript everywhere; the backend is Node + Express with PostgreSQL, Redis and RabbitMQ.
 
 | Part | Choice | Why |
 | --- | --- | --- |
@@ -33,14 +33,16 @@ TypeScript everywhere; the backend is Node + Express + PostgreSQL.
 | Repo | pnpm workspaces (monorepo) | One repo, a shared `shared` package |
 | Backend | Node + Express | Familiar structure |
 | Database | PostgreSQL + Prisma | Relational data; transactions and unique constraints keep seats safe |
-| Real-time | Socket.io | Seat state on every screen instantly |
+| Holds, cache, rate limits | Redis | Seat holds expire by themselves; shared state for every API instance |
+| Messaging | RabbitMQ (outbox pattern) | Work after a sale (email, box-office printing, stats) runs in a worker, not in the request |
+| Real-time | Socket.io + Redis adapter | Seat state on every screen instantly, from any API instance |
 | Validation | Zod | Same schemas in the API and the forms |
 | Auth | JWT | Same approach for web, mobile and kiosk |
 | Web | Next.js (App Router) | Customer site + admin panel |
 | Mobile | Expo + Expo Router | File-based routing, similar to Next.js |
 | Kiosk | React + Vite | A single-page app with no SEO needs; its two windows (`/` and `/display`) are linked by a BroadcastChannel. The website stays on Next.js for SEO |
 | Data fetching | TanStack Query | Same in all three clients |
-| Hosting | Docker Compose | PostgreSQL + API on our own server |
+| Hosting | Docker Compose | PostgreSQL, Redis, RabbitMQ, the API and the worker on our own server |
 
 ## Monorepo layout
 
@@ -49,7 +51,7 @@ Five apps and two shared packages live in one repo.
 ```
 sinema/
 ├── apps/
-│   ├── api/        Express + Prisma + Socket.io
+│   ├── api/        Express + Prisma + Socket.io; src/worker.ts is the outbox relay and the RabbitMQ consumers
 │   ├── web/        Next.js (customer site + /admin)
 │   ├── kiosk/      React + Vite box office (staff screen + customer screen)
 │   ├── mobile/     Expo customer app
@@ -64,9 +66,54 @@ sinema/
 
 Note: from Expo SDK 52, Metro is configured for monorepos automatically, and pnpm's isolated installs work from SDK 54.
 
+## Architecture
+
+The API and a separate worker process share three stores, each holding what it is best at.
+
+```mermaid
+flowchart LR
+  Clients[Web / customer app / kiosk] -->|HTTP + Socket.io| API
+  Provider[Payment provider] -->|signed webhook| API
+  API --> PG[(PostgreSQL)]
+  API --> Redis[(Redis)]
+  API -->|charge| Provider
+  Worker -->|1. poll outbox, SKIP LOCKED| PG
+  Worker -->|2. publish, confirmed| MQ[[RabbitMQ: sinema.events]]
+  MQ -->|ticket.issued| Email[email consumer]
+  MQ -->|ticket.issued| Print[kiosk-print consumer]
+  MQ -->|ticket.issued| Stats[sales-stats consumer]
+  Email & Print & Stats -->|work + processed_messages, one transaction| PG
+  Redis -. expired hold keys .-> API
+```
+
+| Store | Holds | Why there |
+| --- | --- | --- |
+| PostgreSQL | Everything that must not be lost: users, the schedule, orders, tickets, vouchers, and the bookkeeping that makes retries safe (`idempotency_keys`, `processed_webhooks`, `processed_messages`, `outbox`), plus `print_jobs` and `daily_sales` written by the workers | Transactions, constraints and the partial unique index on tickets are the final word on who owns a seat |
+| Redis | Seat holds (`hold:<showtime>:<seat>`, SET NX with a 10-minute expiry, plus a sorted set per showtime and a set per holder), cached showtime lists and seat maps (tag versions for invalidation), rate-limit counters, the Socket.io adapter's pub/sub | Short-lived, fast, shared by every API instance; losing it only frees holds and empties caches |
+| RabbitMQ | `ticket.issued` events on the `sinema.events` topic exchange; one queue per consumer, each with a `.retry` queue (5 s delay, dead-letters back) and a `.dlq` | Work after a sale happens outside the request, can fail and retry on its own, and each consumer goes at its own pace |
+
+### Idempotency, layer by layer
+
+A request, a webhook or a message can arrive twice; each layer turns the repeat into a no-op.
+
+1. **Clients → API.** Checkout requests carry an `Idempotency-Key` header. The first request inserts `(caller, key)` into `idempotency_keys` and stores the response when done; a repeat gets the stored response (`Idempotent-Replayed: true`), a repeat while the first still runs gets 409, and the same key with a different body gets 422.
+2. **Provider → API.** Each webhook event id is inserted into `processed_webhooks` with `ON CONFLICT DO NOTHING` in the same transaction as the order update; a redelivery finds the row and stops.
+3. **Order state.** Orders only move `PENDING → PAID` or `PENDING → FAILED` with `UPDATE ... WHERE status = 'PENDING'`; zero rows means it was already settled. Tickets move `PAID → USED` and vouchers `PAID → USED` the same way.
+4. **Seats.** Redis holds stop most conflicts early, but the partial unique index on `Ticket(showtimeId, seatId) WHERE status <> 'CANCELLED'` is what guarantees one seat, one ticket: if two paid orders race for a seat, one insert fails, that order is marked FAILED and refunded.
+5. **RabbitMQ → consumers.** The message id is the outbox row id. Each consumer inserts `(consumer, message id)` into `processed_messages` in the same transaction as its work and acks only after the commit; a redelivery finds the row and is acked without doing anything.
+
+### Outbox flow
+
+1. The webhook (or a cash sale) settles the order in one transaction: tickets, vouchers and an `outbox` row `ticket.issued {orderId}`. If the transaction rolls back, there is no event; if it commits, the event cannot be lost.
+2. The worker's relay polls `SELECT ... FROM outbox WHERE published_at IS NULL ORDER BY created_at LIMIT 50 FOR UPDATE SKIP LOCKED` (a partial index keeps this to the backlog), publishes on a confirm channel with `messageId` = row id, waits for the broker's confirms and marks the rows `published_at`. A failure leaves them for the next pass; several relays never send the same row at once.
+3. Each consumer queue gets a copy. A failing message is copied to `<queue>.retry` with `x-attempts` raised and comes back after the delay; after 5 attempts it is parked in `<queue>.dlq`.
+4. Delivery is at least once end to end, made exactly once in effect by step 5 of the idempotency layers. Email is the one side effect outside the database, so in the rare case a send succeeds and the commit then fails, the email goes out twice.
+
+The QR code images are not stored: they are drawn from the signed token whenever asked for.
+
 ## Data model
 
-Twelve tables: user, movie, hall layout, hall, seat, showtime, seat lock, order, ticket, product, order item and concession voucher.
+Eleven domain tables (user, movie, hall layout, hall, seat, showtime, order, ticket, product, order item, concession voucher) and six for reliability and the workers (idempotency keys, processed webhooks, processed messages, outbox, print jobs, daily sales). Seat holds live in Redis, not in a table.
 
 | Table | Main fields | Notes |
 | --- | --- | --- |
@@ -76,8 +123,7 @@ Twelve tables: user, movie, hall layout, hall, seat, showtime, seat lock, order,
 | Hall | id, name, layoutId?, formats (TWO_D / THREE_D / IMAX / IMAX_3D) | A showtime's format must be one the hall supports |
 | Seat | id, hallId, row (A, B…), number, column, type (STANDARD / VIP / WHEELCHAIR) | Built from the hall layout; column keeps aisles. Unique: hallId + row + number |
 | Showtime | id, movieId, hallId, startsAt, price, format | price is the list price; discounts are applied automatically. No overlapping showtimes in the same hall |
-| SeatLock | id, showtimeId, seatId, holderId, expiresAt | Unique: showtimeId + seatId; an expired lock is void |
-| Order | id, holderId, userId?, amount, status (PENDING / PAID / FAILED), provider, providerRef?, idempotencyKey, contactEmail, accessToken, createdAt | Groups the tickets bought in one payment; idempotencyKey and accessToken are unique |
+| Order | id, holderId, userId?, amount, status (PENDING / PAID / FAILED), provider, paymentMethod, providerRef?, showtimeId, seatIds, seatPrice, channel, locale, contactEmail?, accessToken, createdAt | Groups the tickets bought in one payment; a PENDING order carries the seats and price to issue when the webhook confirms it. accessToken is unique |
 | Ticket | id, orderId, showtimeId, seatId, userId?, status (PAID / USED / CANCELLED), qrToken, channel (WEB / MOBILE / KIOSK), createdAt | Unique: showtimeId + seatId (among non-cancelled tickets) |
 | Product | id, name (JSON by language), description?, category (COMBO / SNACK / DRINK / GLASSES), price, sortOrder, active | The concession stand; 3D glasses are sold only for 3D and IMAX 3D showtimes |
 | OrderItem | id, orderId, productId, quantity, unitPrice | Price at the time of sale |
@@ -87,20 +133,22 @@ Money is stored as integer cents.
 
 ## Purchase flow and seat locking
 
-A selected seat is locked for 7 minutes; if payment does not finish in that time, the lock is released.
+A selected seat is held for 10 minutes in Redis; if payment does not finish in that time, the hold expires and the seat frees itself.
 
 1. The customer picks a movie and a showtime (grouped by day, then by format).
-2. The API returns the showtime's sold and locked seats.
-3. The customer picks seats; the API creates `SeatLock` rows in a transaction. The unique constraint rejects a second holder.
-4. Socket.io broadcasts "seat locked" to every client.
-5. Optional second step: snacks, drinks and combos; for 3D and IMAX 3D, 3D glasses come first with a "one per seat" shortcut. Third step: the basket (tickets, items, total) and payment. On the web the customer enters an email, as a guest if they like. When the (simulated) payment completes, a transaction creates the `Ticket` rows and a PAID `Order`, deletes the locks and issues QR tokens. Payment goes through a `PaymentProvider` interface; the first implementation is `FakeProvider`.
-6. The API emails the QR codes and a link to `/orders/<accessToken>`, a page that shows them on any device without signing in. A failed email does not undo the sale.
-7. If there is no payment within 7 minutes, the lock expires; the seat becomes free again and that is broadcast.
-8. At the entrance, staff scan the QR code; a `PAID` ticket becomes `USED`, anything else is rejected.
+2. The API returns the showtime's seats: the cached hall and sold seats, with the live holds from Redis laid over them.
+3. The customer picks seats; one Lua script in Redis holds all of them or none (`SET NX PX`), releases the holder's seats in any other showtime and enforces the limit.
+4. Socket.io broadcasts "seat locked" to every client through the Redis adapter.
+5. Optional second step: snacks, drinks and combos; for 3D and IMAX 3D, 3D glasses come first with a "one per seat" shortcut. Third step: the basket (tickets, items, total) and payment. On the web the customer enters an email, as a guest if they like.
+6. Checkout (with an `Idempotency-Key` header) confirms and extends the holds, creates a PENDING order with the seats and prices fixed, and asks the provider to charge; it answers 202. Cash at the box office settles at once (201).
+7. The provider's signed webhook settles the order in one transaction: the event id is recorded, the order moves to PAID, tickets and vouchers are written with their QR tokens, and the `ticket.issued` event goes to the outbox. The holds are then released, caches invalidated and "seat sold" broadcast. A declined payment moves the order to FAILED and keeps the holds, so the customer can try again. Clients follow the order with `GET /checkout/orders/:id` until it is PAID or FAILED.
+8. The worker relays the event to RabbitMQ; the email consumer sends the QR codes and a link to `/orders/<accessToken>`, the kiosk-print consumer queues box-office tickets for the printer, and the sales-stats consumer adds the sale to `daily_sales`. A failed email does not undo the sale.
+9. If there is no payment within 10 minutes, the hold key expires; Redis reports it and the seat is broadcast as free.
+10. At the entrance, staff scan the QR code; a `PAID` ticket becomes `USED`, anything else is rejected.
 
 Rules:
 
-- Lock duration: 7 minutes
+- Hold duration: 10 minutes, extended to at least 3 minutes once payment starts
 - A holder buys for one showtime at a time: locking seats in another showtime releases the rest at once
 - A user or kiosk session can hold at most 10 seats at once
 - QR tokens must be unguessable (random, signed)
@@ -123,11 +171,13 @@ REST endpoints live under `/api`; real-time events go to per-showtime rooms.
 | GET | /movies/:id/showtimes | A movie's upcoming showtimes | Anyone |
 | GET | /showtimes?from=&to= | Every movie's showtimes in a window of up to 8 days, with the seats left, for the box office | Anyone |
 | GET | /showtimes/:id/seats | Seats + state (free / locked / sold) | Anyone |
-| POST | /showtimes/:id/locks | Lock seats | Customer, guest, staff |
-| DELETE | /locks/:id | Release a lock | Lock holder |
-| POST | /checkout | Simulate payment, create tickets (idempotent per key) | Customer, guest |
+| POST | /showtimes/:id/locks | Hold seats (Redis, 10 minutes; 60 a minute) | Customer, guest, staff |
+| DELETE | /locks/:id | Release a hold (`<showtimeId>:<seatId>`) | Hold holder |
+| POST | /checkout | Start a card payment: PENDING order, 202 (Idempotency-Key header; 10 a minute) | Customer, guest |
+| GET | /checkout/orders/:id | Follow one's own order until PAID or FAILED | Order holder |
+| POST | /webhooks/payments/:provider | Signed payment outcome from the provider; settles the order | Provider |
 | PUT | /me/pin | Set or change the caller's six-digit box-office lock PIN | Staff, admin |
-| POST | /checkout/kiosk | Box-office sale: cash or card, optional email, channel KIOSK | Staff, admin |
+| POST | /checkout/kiosk | Box-office sale: cash settles at once (201), card like online (202); optional email, channel KIOSK | Staff, admin |
 | GET | /me/tickets | Tickets bought by this user or guest session | Customer, guest |
 | GET | /orders/:accessToken | An order's tickets, for the emailed link | Link holder |
 | GET | /tickets/:qrToken | One ticket, for the link in its QR code | Code holder |
@@ -155,11 +205,12 @@ These are the defaults; changes are recorded here.
 | Project | Cinema ticketing system (web + mobile + kiosk) |
 | Database | PostgreSQL + Prisma (instead of MongoDB) |
 | Repo | pnpm monorepo, no Turborepo for now |
-| Seat lock | 7 minutes |
+| Seat hold | 10 minutes, in Redis |
 | Payment | Simulated first (`FakeProvider`) behind a `PaymentProvider` interface; a real provider's test mode (iyzico or Stripe) after the MVP |
-| Real-time | Yes, Socket.io |
+| Real-time | Yes, Socket.io with the Redis adapter |
+| Messaging | RabbitMQ through a transactional outbox; idempotent consumers, retry queue, DLQ |
 | Kiosk ticket | QR on screen first, printer later |
-| Ticket delivery | Email only, sent by the API through EmailJS's REST API (private key stays on the server); logged instead of sent when EmailJS is not configured |
+| Ticket delivery | Email only, sent by the email worker through EmailJS's REST API (private key stays on the server); logged instead of sent when EmailJS is not configured |
 | Accounts | Web: optional, guests buy with an email. Customer app: required. Staff app: staff and admin accounts only. Kiosk: staff sign in; customers need no account |
 | Schedule | The seed plans each hall's day back to back for 7 days; a full schedule through 2030 comes later |
 | Content language | Code and docs in English; the UI is English and Turkish, picked from the system language |

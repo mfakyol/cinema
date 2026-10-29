@@ -5,17 +5,16 @@ import {
   needsGlasses,
   seatPricing,
   type ShowFormat,
-  SocketEvent,
 } from "@sinema/shared";
-import { isUniqueViolation, prisma } from "../db.js";
+import { prisma } from "../db.js";
+import { extendHolds, heldBy } from "../holds/seat-holds.js";
 import { HttpError } from "../lib/http-error.js";
 import type { AuthClaims } from "../lib/jwt.js";
-import { createQrToken } from "../lib/qr.js";
-import { mailer } from "../notifications/index.js";
-import { buildTicketEmail } from "../notifications/ticket-email.js";
 import { paymentProvider } from "../payments/index.js";
-import type { ChargeResult } from "../payments/provider.js";
-import { emitToShowtime } from "../realtime.js";
+import { settleOrder } from "./settlement.js";
+
+/** Holds are kept at least this long once payment starts, so a slow payment does not lose them. */
+const PAYMENT_WINDOW_MS = 3 * 60 * 1000;
 
 const orderWithTickets = {
   tickets: { select: { id: true, seatId: true, qrToken: true, status: true, channel: true } },
@@ -30,6 +29,18 @@ const orderWithTickets = {
     },
   },
 } as const;
+
+/** An order as its holder sees it, pending or settled. */
+export function loadOrder(id: string) {
+  return prisma.order.findUniqueOrThrow({ where: { id }, include: orderWithTickets });
+}
+
+/** The holder's own order, to follow a pending payment. Anyone else's looks missing. */
+export async function getHolderOrder(holderId: string, orderId: string) {
+  const order = await prisma.order.findUnique({ where: { id: orderId }, include: orderWithTickets });
+  if (!order || order.holderId !== holderId) throw new HttpError(404, "NOT_FOUND", "Order not found");
+  return order;
+}
 
 /**
  * Checks the requested snacks, drinks and glasses against the catalogue and prices them.
@@ -58,10 +69,6 @@ async function priceItems(items: CheckoutInput["items"], format: ShowFormat) {
   }));
 }
 
-async function loadOrder(id: string) {
-  return prisma.order.findUniqueOrThrow({ where: { id }, include: orderWithTickets });
-}
-
 /** What a sale needs once the caller is known, whichever app it came from. */
 type SaleInput = Omit<CheckoutInput, "channel" | "email"> & {
   channel: "WEB" | "MOBILE" | "KIOSK";
@@ -82,132 +89,60 @@ export function kioskCheckout(auth: AuthClaims, input: KioskCheckoutInput) {
 }
 
 /**
- * Pays for the caller's locked seats in one showtime and turns them into tickets.
- * Repeating a call with the same idempotency key returns the first result instead of
- * charging again, so a client can safely retry after a timeout.
+ * Starts paying for the caller's held seats in one showtime. The order is created PENDING with
+ * the seats and prices fixed; a card payment then goes to the provider, whose webhook settles
+ * it (202, follow it with GET /checkout/orders/:id). Cash at the box office settles at once
+ * (201). Retries are made safe by the Idempotency-Key middleware in front of this.
  */
-async function sell(auth: AuthClaims, input: SaleInput) {
-  const existing = await prisma.order.findUnique({
-    where: { idempotencyKey: input.idempotencyKey },
-    include: orderWithTickets,
-  });
-  if (existing) {
-    if (existing.holderId !== auth.sub) {
-      throw new HttpError(409, "IDEMPOTENCY_CONFLICT", "This idempotency key is already used");
-    }
-    if (existing.status === "FAILED") {
-      throw new HttpError(402, "PAYMENT_FAILED", "This checkout already failed; retry with a new key");
-    }
-    if (existing.status === "PENDING") {
-      throw new HttpError(409, "CHECKOUT_IN_PROGRESS", "This checkout is still being processed");
-    }
-    return existing;
-  }
-
-  const now = new Date();
-  const locks = await prisma.seatLock.findMany({
-    where: { holderId: auth.sub, showtimeId: input.showtimeId, expiresAt: { gt: now } },
-    include: { showtime: { select: { price: true, startsAt: true, format: true } } },
-  });
-  if (locks.length === 0) {
+async function sell(auth: AuthClaims, input: SaleInput): Promise<{ status: 201 | 202; order: Awaited<ReturnType<typeof loadOrder>> }> {
+  const holds = await heldBy(auth.sub, input.showtimeId);
+  if (holds.length === 0) {
     throw new HttpError(400, "NO_LOCKS", "Lock seats for this showtime before checking out");
   }
-  const lines = await priceItems(input.items, locks[0]!.showtime.format);
+  const showtime = await prisma.showtime.findUnique({
+    where: { id: input.showtimeId },
+    select: { price: true, startsAt: true, format: true },
+  });
+  if (!showtime) throw new HttpError(404, "NOT_FOUND", "Showtime not found");
+  const lines = await priceItems(input.items, showtime.format);
 
-  // Only a customer's own purchase goes to their account.
-  const userId = auth.role === "CUSTOMER" ? auth.sub : null;
-  const { channel } = input;
-  const cash = input.payment === "CASH";
+  const seatIds = holds.map((hold) => hold.seatId);
+  if (!(await extendHolds(auth.sub, input.showtimeId, seatIds, PAYMENT_WINDOW_MS))) {
+    throw new HttpError(409, "LOCK_LOST", "A seat hold expired before payment started");
+  }
+
   // Discounts follow from the showtime itself (Wednesday, weekday daytime), never from the client.
-  const seatPrice = seatPricing(locks[0]!.showtime).price;
-  const amount =
-    seatPrice * locks.length +
-    lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
+  const seatPrice = seatPricing(showtime).price;
+  const amount = seatPrice * seatIds.length + lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
+  const cash = input.payment === "CASH";
 
-  let order;
-  try {
-    order = await prisma.order.create({
-      data: {
-        holderId: auth.sub,
-        userId,
-        amount,
-        provider: cash ? "cash" : paymentProvider.name,
-        paymentMethod: input.payment,
-        idempotencyKey: input.idempotencyKey,
-        contactEmail: input.email,
-        accessToken: randomBytes(24).toString("base64url"),
-        items: { create: lines },
-      },
-      include: { items: true },
-    });
-  } catch (error) {
-    // A concurrent retry with the same key got here first.
-    if (isUniqueViolation(error)) {
-      throw new HttpError(409, "CHECKOUT_IN_PROGRESS", "This checkout is still being processed");
-    }
-    throw error;
-  }
-
-  // Cash is taken at the counter before the sale is confirmed, so there is nothing to charge.
-  const charge: ChargeResult = cash
-    ? { ok: true, providerRef: `cash-${order.id}` }
-    : await paymentProvider.charge({ orderId: order.id, amount, simulate: input.simulate });
-  if (!charge.ok) {
-    await prisma.order.update({ where: { id: order.id }, data: { status: "FAILED" } });
-    throw new HttpError(402, "PAYMENT_DECLINED", charge.reason);
-  }
-
-  try {
-    await prisma.$transaction(async (tx) => {
-      // Payment can outlast the lock. A lock that expired but is still ours is honoured;
-      // one the sweeper already removed (and someone may have re-locked) is lost.
-      const released = await tx.seatLock.deleteMany({
-        where: { id: { in: locks.map((lock) => lock.id) }, holderId: auth.sub },
-      });
-      if (released.count !== locks.length) {
-        throw new HttpError(409, "LOCK_LOST", "A seat lock expired before payment finished");
-      }
-      await tx.ticket.createMany({
-        data: locks.map((lock) => ({
-          orderId: order.id,
-          showtimeId: lock.showtimeId,
-          seatId: lock.seatId,
-          userId,
-          channel,
-          qrToken: createQrToken(),
-        })),
-      });
-      // One voucher per unit, so each popcorn or pair of glasses has its own QR code.
-      await tx.concessionVoucher.createMany({
-        data: order.items.flatMap((item) =>
-          Array.from({ length: item.quantity }, () => ({ orderItemId: item.id, qrToken: createQrToken() })),
-        ),
-      });
-      await tx.order.update({
-        where: { id: order.id },
-        data: { status: "PAID", providerRef: charge.providerRef },
-      });
-    });
-  } catch (error) {
-    await prisma.order.update({ where: { id: order.id }, data: { status: "FAILED" } });
-    if (!cash) await paymentProvider.refund(charge.providerRef);
-    if (isUniqueViolation(error)) {
-      throw new HttpError(409, "SEAT_TAKEN", "A seat was sold before payment finished");
-    }
-    throw error;
-  }
-
-  emitToShowtime(input.showtimeId, SocketEvent.SEAT_SOLD, {
-    seatIds: locks.map((lock) => lock.seatId),
+  const order = await prisma.order.create({
+    data: {
+      holderId: auth.sub,
+      // Only a customer's own purchase goes to their account.
+      userId: auth.role === "CUSTOMER" ? auth.sub : null,
+      amount,
+      provider: cash ? "cash" : paymentProvider.name,
+      paymentMethod: input.payment,
+      showtimeId: input.showtimeId,
+      seatIds,
+      seatPrice,
+      channel: input.channel,
+      locale: input.locale,
+      contactEmail: input.email,
+      accessToken: randomBytes(24).toString("base64url"),
+      items: { create: lines },
+    },
   });
 
-  // The sale stands even if the email fails; the order link on the confirmation screen still works.
-  if (input.email) {
-    try {
-      await mailer.send(await buildTicketEmail(order.id, input.locale));
-    } catch (error) {
-      console.error(`Ticket email for order ${order.id} failed`, error);
-    }
+  if (cash) {
+    // Cash is taken at the counter before the sale is confirmed, so it settles right away.
+    const result = await settleOrder(order.id, { paid: true, providerRef: `cash-${order.id}` });
+    if (result === "seat-taken") throw new HttpError(409, "SEAT_TAKEN", "A seat was sold before payment finished");
+    return { status: 201, order: await loadOrder(order.id) };
   }
-  return loadOrder(order.id);
+
+  const { providerRef } = await paymentProvider.charge({ orderId: order.id, amount, simulate: input.simulate });
+  await prisma.order.updateMany({ where: { id: order.id, status: "PENDING" }, data: { providerRef } });
+  return { status: 202, order: await loadOrder(order.id) };
 }

@@ -1,8 +1,14 @@
 import { type SeatState, seatPricing } from "@sinema/shared";
 import { prisma } from "../db.js";
+import { holdId, showtimeHolds } from "../holds/seat-holds.js";
+import { cached } from "../infra/cache.js";
 import { HttpError } from "../lib/http-error.js";
 
-export async function getSeatMap(showtimeId: string, holderId?: string) {
+/** How long the hall layout and sold seats of a showtime stay cached; sales invalidate sooner. */
+const SEAT_MAP_TTL_SECONDS = 300;
+
+/** The part of a seat map every viewer shares: the showtime, the hall's seats and the sold ones. */
+async function loadSeatMapBase(showtimeId: string) {
   const showtime = await prisma.showtime.findUnique({
     where: { id: showtimeId },
     include: {
@@ -16,45 +22,58 @@ export async function getSeatMap(showtimeId: string, holderId?: string) {
       },
     },
   });
-  if (!showtime) throw new HttpError(404, "NOT_FOUND", "Showtime not found");
+  if (!showtime) return null;
+  const tickets = await prisma.ticket.findMany({
+    where: { showtimeId, status: { not: "CANCELLED" } },
+    select: { seatId: true },
+  });
+  return {
+    showtime: {
+      id: showtime.id,
+      startsAt: showtime.startsAt.toISOString(),
+      price: showtime.price,
+      format: showtime.format,
+      movie: showtime.movie,
+      hall: { id: showtime.hall.id, name: showtime.hall.name },
+    },
+    seats: showtime.hall.seats.map(({ id, row, number, column, type }) => ({ id, row, number, column, type })),
+    soldSeatIds: tickets.map((ticket) => ticket.seatId),
+  };
+}
 
-  const now = new Date();
-  const [locks, tickets] = await Promise.all([
-    prisma.seatLock.findMany({
-      where: { showtimeId, expiresAt: { gt: now } },
-      select: { id: true, seatId: true, holderId: true, expiresAt: true },
-    }),
-    prisma.ticket.findMany({
-      where: { showtimeId, status: { not: "CANCELLED" } },
-      select: { seatId: true },
-    }),
-  ]);
-  const lockBySeat = new Map(locks.map((lock) => [lock.seatId, lock]));
-  const soldSeats = new Set(tickets.map((ticket) => ticket.seatId));
+/**
+ * A showtime's seat map: the cached base from PostgreSQL with the live holds from Redis laid
+ * over it, so holds never make the cache stale. Only the holder sees their own hold ids and
+ * expiry, to release them or count down.
+ */
+export async function getSeatMap(showtimeId: string, holderId?: string) {
+  const base = await cached(`seatmap:${showtimeId}`, showtimeId, SEAT_MAP_TTL_SECONDS, () =>
+    loadSeatMapBase(showtimeId),
+  );
+  if (!base) throw new HttpError(404, "NOT_FOUND", "Showtime not found");
+
+  const holds = new Map((await showtimeHolds(showtimeId)).map((hold) => [hold.seatId, hold]));
+  const sold = new Set(base.soldSeatIds);
+  const { showtime } = base;
 
   return {
     showtime: {
       id: showtime.id,
       startsAt: showtime.startsAt,
-      ...seatPricing(showtime),
+      ...seatPricing({ price: showtime.price, startsAt: new Date(showtime.startsAt) }),
       format: showtime.format,
       movie: showtime.movie,
-      hall: { id: showtime.hall.id, name: showtime.hall.name },
+      hall: showtime.hall,
     },
-    columns: Math.max(0, ...showtime.hall.seats.map((seat) => seat.column + 1)),
-    seats: showtime.hall.seats.map((seat) => {
-      const lock = lockBySeat.get(seat.id);
-      const state: SeatState = soldSeats.has(seat.id) ? "sold" : lock ? "locked" : "free";
-      const mine = state === "locked" && holderId !== undefined && lock?.holderId === holderId;
+    columns: Math.max(0, ...base.seats.map((seat) => seat.column + 1)),
+    seats: base.seats.map((seat) => {
+      const hold = holds.get(seat.id);
+      const state: SeatState = sold.has(seat.id) ? "sold" : hold ? "locked" : "free";
+      const mine = state === "locked" && holderId !== undefined && hold?.holderId === holderId;
       return {
-        id: seat.id,
-        row: seat.row,
-        number: seat.number,
-        column: seat.column,
-        type: seat.type,
+        ...seat,
         state,
-        // Only the holder sees their own lock id and expiry, to release or count down.
-        ...(mine && lock ? { lockId: lock.id, lockExpiresAt: lock.expiresAt } : {}),
+        ...(mine && hold ? { lockId: holdId(showtimeId, seat.id), lockExpiresAt: hold.expiresAt } : {}),
       };
     }),
   };

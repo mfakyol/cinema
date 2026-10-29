@@ -9,6 +9,7 @@
     "db:migrate": "pnpm --filter @sinema/api db:migrate",
     "db:seed": "pnpm --filter @sinema/api db:seed",
     "dev:api": "pnpm --filter @sinema/api dev",
+    "dev:worker": "pnpm --filter @sinema/api dev:worker",
     "dev:web": "pnpm --filter @sinema/web dev",
     "dev:kiosk": "pnpm --filter @sinema/kiosk dev",
     "dev:mobile": "pnpm --filter @sinema/mobile start",

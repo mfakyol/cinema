@@ -10,6 +10,7 @@ import { locksRouter } from "./routes/locks.js";
 import { moviesRouter } from "./routes/movies.js";
 import { ordersRouter } from "./routes/orders.js";
 import { showtimesRouter } from "./routes/showtimes.js";
+import { webhooksRouter } from "./routes/webhooks.js";
 import { meRouter, ticketsRouter } from "./routes/tickets.js";
 
 const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
@@ -32,7 +33,14 @@ export function createApp() {
   const app = express();
   // Clients authenticate with a bearer header, not cookies, so any origin may call the API.
   app.use(cors());
-  app.use(express.json());
+  // The raw body is kept for webhook signatures, which are computed over the exact bytes sent.
+  app.use(
+    express.json({
+      verify: (req, _res, buffer) => {
+        (req as { rawBody?: Buffer }).rawBody = buffer;
+      },
+    }),
+  );
   app.use(authenticate);
 
   const api = express.Router();
@@ -47,6 +55,7 @@ export function createApp() {
   api.use("/products", productsRouter);
   api.use("/concessions", concessionsRouter);
   api.use("/checkout", checkoutRouter);
+  api.use("/webhooks", webhooksRouter);
   api.use("/orders", ordersRouter);
   api.use("/me", meRouter);
   api.use("/tickets", ticketsRouter);

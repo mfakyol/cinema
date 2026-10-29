@@ -15,6 +15,16 @@ const envSchema = z.object({
   EMAILJS_TEMPLATE_ID: z.string().optional(),
   EMAILJS_PUBLIC_KEY: z.string().optional(),
   EMAILJS_PRIVATE_KEY: z.string().optional(),
+  /** Seat holds, caches, rate limits and the Socket.io adapter. */
+  REDIS_URL: z.string().default("redis://localhost:6379"),
+  /** Events from the outbox to the workers. */
+  RABBITMQ_URL: z.string().default("amqp://sinema:sinema@localhost:5672"),
+  /** Shared with the payment provider; signs its webhook calls. */
+  PAYMENT_WEBHOOK_SECRET: z.string().min(16),
+  /** The fake provider confirms a payment this long after the charge, through the webhook. */
+  FAKE_PAYMENT_DELAY_MS: z.coerce.number().int().nonnegative().default(800),
+  /** "off" stops the fake provider calling the webhook itself; tests deliver webhooks by hand. */
+  FAKE_PAYMENT_CALLBACKS: z.enum(["on", "off"]).default("on"),
 });
 
 export const env = envSchema.parse(process.env);

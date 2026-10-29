@@ -100,6 +100,10 @@
     "VOUCHER_CANCELLED": "This item was cancelled.",
     "INVALID_PRODUCT": "Some items are no longer on sale.",
     "GLASSES_NOT_3D": "3D glasses are only sold for 3D showings.",
+    "RATE_LIMITED": "Too many attempts in a short time. Wait a moment and try again.",
+    "IDEMPOTENCY_KEY_REUSED": "This payment attempt changed while it was being sent. Start the payment again.",
+    "REQUEST_IN_PROGRESS": "Your payment is already being processed. Please wait.",
+    "PAYMENT_TIMEOUT": "The payment is taking longer than usual. Check your tickets in a moment before trying again.",
     "generic": "Something went wrong. Please try again."
   },
   "order": {

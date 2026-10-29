@@ -6,6 +6,8 @@ declare global {
   namespace Express {
     interface Request {
       auth?: AuthClaims;
+      /** The exact request body, for verifying webhook signatures. */
+      rawBody?: Buffer;
     }
   }
 }

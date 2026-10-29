@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "../src/db.js";
 import { mailer } from "../src/notifications/index.js";
-import { api, checkout, createFixture, guestToken, lock } from "./helpers.js";
+import { api, checkout, createFixture, guestToken, lock, runWorkers } from "./helpers.js";
 
 // Expected Turkish copy comes from the translation file, not from literals here.
 const tr = createRequire(import.meta.url)("@sinema/shared/messages/tr.json");
@@ -35,6 +35,9 @@ describe("ticket emails and order links", () => {
     expect(res.status).toBe(201);
     const { order } = res.body;
 
+    // The sale only writes the outbox event; the email worker sends.
+    expect(send).not.toHaveBeenCalled();
+    await runWorkers();
     expect(send).toHaveBeenCalledTimes(1);
     const email = send.mock.calls[0]![0];
     expect(email.to).toBe("jane@example.com");
@@ -47,8 +50,9 @@ describe("ticket emails and order links", () => {
       expect(email.params.tickets_html).toContain(`/api/tickets/${ticket.qrToken}/qr.png`);
     }
 
-    // A retry returns the same order without emailing again.
-    await checkout(token, showtime.id, { idempotencyKey }).expect(201);
+    // A retry (same key, same request) returns the same order without emailing again.
+    await checkout(token, showtime.id, { email: "Jane@Example.com", locale: "tr", idempotencyKey }).expect(201);
+    await runWorkers();
     expect(send).toHaveBeenCalledTimes(1);
   });
 
@@ -58,6 +62,11 @@ describe("ticket emails and order links", () => {
     const { res } = await buy();
     expect(res.status).toBe(201);
     expect(res.body.order.status).toBe("PAID");
+
+    // Only the email worker fails (its message would be retried); the others still run.
+    const results = Object.entries(await runWorkers());
+    expect(results.filter(([name]) => name.startsWith("email:")).map(([, result]) => result)).toEqual(["failed"]);
+    expect(results.filter(([name]) => !name.startsWith("email:")).every(([, result]) => result === "processed")).toBe(true);
   });
 
   it("shows the order behind the link without signing in", async () => {

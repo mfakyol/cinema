@@ -2,7 +2,7 @@ import { concessionUrl, ticketUrl } from "@sinema/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "../src/db.js";
 import { mailer } from "../src/notifications/index.js";
-import { api, bearer, checkout, createFixture, createUser, guestToken, lock } from "./helpers.js";
+import { api, bearer, checkout, createFixture, createUser, guestToken, lock, runWorkers } from "./helpers.js";
 
 const SITE = "http://localhost:3000";
 
@@ -159,6 +159,7 @@ describe("concessions", () => {
     const res = await checkout(token, showtime.id, {
       items: [{ productId: products.popcorn.id, quantity: 2 }],
     }).expect(201);
+    await runWorkers();
 
     const html = send.mock.calls[0]![0].params.tickets_html!;
     for (const voucher of res.body.order.items[0].vouchers) {
