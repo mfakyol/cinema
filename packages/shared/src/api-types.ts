@@ -1,5 +1,5 @@
 import type { LayoutRow } from "./layouts.js";
-import type { ProductCategory, SeatState, ShowFormat } from "./constants.js";
+import type { OrderStatus, ProductCategory, SeatState, ShowFormat } from "./constants.js";
 import type { Locale } from "./i18n.js";
 import type { Discount } from "./pricing.js";
 
@@ -31,6 +31,46 @@ export interface ScheduledShowtime extends Showtime {
   movie: Pick<Movie, "id" | "title" | "durationMin" | "genre" | "posterUrl">;
   /** Seats neither sold nor held right now. */
   seatsLeft: number;
+}
+
+/** A movie in the admin panel. */
+export interface AdminMovie extends Movie {
+  /** Showtimes that have not started and are not cancelled. */
+  upcomingShowtimes: number;
+}
+
+/** A showtime in the admin panel, with how full it is. */
+export interface AdminShowtime {
+  id: string;
+  startsAt: string;
+  /** When the hall is free again: the film plus the turnaround. */
+  endsAt: string;
+  format: ShowFormat;
+  /** List price in cents. */
+  price: number;
+  movie: { id: string; title: string; durationMin: number };
+  hall: { id: string; name: string };
+  seatCount: number;
+  sold: number;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+}
+
+/** An order in the admin panel, to find and refund it. */
+export interface AdminOrder {
+  id: string;
+  status: OrderStatus;
+  amount: number;
+  channel: "WEB" | "MOBILE" | "KIOSK";
+  paymentMethod: "CARD" | "CASH";
+  contactEmail: string | null;
+  createdAt: string;
+  refundedAt: string | null;
+  refundReason: string | null;
+  showtime: { id: string; startsAt: string; movie: { title: string }; hall: { name: string }; cancelledAt: string | null };
+  tickets: number;
+  /** Tickets already scanned at the door; such an order can no longer be refunded. */
+  usedTickets: number;
 }
 
 /** A layout in the admin panel, with how many seats it makes and how many halls use it. */
@@ -151,7 +191,7 @@ export interface OrderItem {
 
 export interface Order {
   id: string;
-  status: "PENDING" | "PAID" | "FAILED";
+  status: OrderStatus;
   amount: number;
   contactEmail: string | null;
   paymentMethod: "CARD" | "CASH";
@@ -164,6 +204,9 @@ export interface Order {
 /** The public view of an order behind its emailed link. */
 export interface OrderPage {
   id: string;
+  /** PAID, or REFUNDED with the reason (a cancelled showtime, an admin's refund). */
+  status: "PAID" | "REFUNDED";
+  refundReason: string | null;
   amount: number;
   /** Partly hidden, e.g. "ja***@example.com"; null for a box-office sale without one. */
   email: string | null;

@@ -14,6 +14,7 @@ import { emitToShowtime } from "../realtime.js";
 export async function lockSeats(holderId: string, showtimeId: string, seatIds: string[]) {
   const showtime = await prisma.showtime.findUnique({ where: { id: showtimeId } });
   if (!showtime) throw new HttpError(404, "NOT_FOUND", "Showtime not found");
+  if (showtime.cancelledAt) throw new HttpError(409, "SHOWTIME_CANCELLED", "This showtime was cancelled");
   if (showtime.startsAt <= new Date()) {
     throw new HttpError(409, "SHOWTIME_STARTED", "This showtime has already started");
   }

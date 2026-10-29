@@ -23,6 +23,8 @@ enum OrderStatus {
   PENDING
   PAID
   FAILED
+  /// Paid, then refunded: the showtime was cancelled or an admin refunded it.
+  REFUNDED
 }
 
 enum TicketStatus {
@@ -114,13 +116,16 @@ model Seat {
 }
 
 model Showtime {
-  id       String     @id @default(uuid())
-  movieId  String
-  hallId   String
-  startsAt DateTime
+  id           String     @id @default(uuid())
+  movieId      String
+  hallId       String
+  startsAt     DateTime
   /// Price in cents to avoid floating point money.
-  price    Int
-  format   ShowFormat @default(TWO_D)
+  price        Int
+  format       ShowFormat @default(TWO_D)
+  /// Set when an admin cancels the showtime; its paid orders are refunded at the same moment.
+  cancelledAt  DateTime?
+  cancelReason String?
 
   movie   Movie    @relation(fields: [movieId], references: [id])
   hall    Hall     @relation(fields: [hallId], references: [id])
@@ -160,6 +165,8 @@ model Order {
   /// Unguessable token in the order link, which shows the QR codes without signing in.
   accessToken   String        @unique
   createdAt     DateTime      @default(now())
+  refundedAt    DateTime?
+  refundReason  String?
 
   user     User?       @relation(fields: [userId], references: [id])
   showtime Showtime    @relation(fields: [showtimeId], references: [id])
@@ -335,6 +342,8 @@ model DailySales {
   items   Int          @default(0)
   /// Revenue in cents.
   revenue Int          @default(0)
+  /// Refunded in cents, counted on the day of the refund.
+  refunds Int          @default(0)
 
   @@id([day, channel])
   @@map("daily_sales")

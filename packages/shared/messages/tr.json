@@ -109,6 +109,13 @@
     "FORMAT_IN_USE": "Bu salondaki yaklaşan seanslar o formatı kullanıyor.",
     "HALL_IN_USE": "Bu salonda satılmış ya da ayrılmış koltuklar var, yerleşimi değişemez.",
     "INVALID_LAYOUT": "Bu yerleşim kullanılamıyor; sıralarını kontrol et.",
+    "SHOWTIME_CANCELLED": "Bu seans iptal edildi.",
+    "SHOWTIME_IN_PAST": "Seans gelecekte başlamalı.",
+    "FORMAT_NOT_IN_HALL": "Bu salon o formatı gösteremiyor.",
+    "HALL_BUSY": "Salon o saatte dolu (film ve temizlik süresi).",
+    "ALREADY_CANCELLED": "Bu seans zaten iptal edildi.",
+    "ORDER_USED": "Bu siparişin bir bileti kapıda kullanılmış.",
+    "NOT_REFUNDABLE": "Yalnızca ödenmiş bir sipariş iade edilebilir.",
     "generic": "Bir sorun oluştu. Lütfen tekrar dene."
   },
   "order": {
@@ -125,7 +132,8 @@
     "linkCopied": "Bağlantı kopyalandı",
     "calendarDescription": "Koltuklar: {seats}. QR kodlarını girişte göster: {link}",
     "shareTicket": "Bileti paylaş",
-    "shareTicketText": "{movie} biletin ({seat}). QR kodu girişte göster."
+    "shareTicketText": "{movie} biletin ({seat}). QR kodu girişte göster.",
+    "refunded": "Bu sipariş iade edildi: {reason}"
   },
   "email": {
     "subject": "{movie} biletlerin",
@@ -133,7 +141,12 @@
     "details": "{movie} · {showtime} · {hall}",
     "showTickets": "Biletlerimi göster",
     "linkHint": "QR kodlarını göstermek için bu bağlantıyı girişte aç. Bağlantıya sahip olan herkes biletleri görebilir, kimseyle paylaşma.",
-    "concessions": "Yiyecek, içecek ve gözlükler"
+    "concessions": "Yiyecek, içecek ve gözlükler",
+    "refundSubject": "İade edildi: {movie}",
+    "refundGreeting": "Siparişin iade edildi.",
+    "refundDetails": "{movie} · {showtime} · {hall} — {amount} sana geri ödeniyor.",
+    "refundReason": "Sebep: {reason}",
+    "refundLinkHint": "Bu siparişteki biletler iptal edildi. Kartla ödemeler birkaç gün içinde karta geri döner; nakit iadesi gişeden yapılır."
   },
   "app": {
     "tabMovies": "Filmler",
@@ -332,6 +345,71 @@
     "delete": "Sil",
     "deleted": "Silindi",
     "inUseHint": "Bu yerleşimden salonlar oluşturulmuş, silinemez.",
-    "reapplyHint": "Bu yerleşimden oluşturulan salonlar, yerleşimi onlara yeniden uygulayana kadar koltuklarını korur."
+    "reapplyHint": "Bu yerleşimden oluşturulan salonlar, yerleşimi onlara yeniden uygulayana kadar koltuklarını korur.",
+    "movies": "Filmler",
+    "showtimes": "Seanslar",
+    "orders": "Siparişler",
+    "newMovie": "Yeni film",
+    "editMovie": "Düzenle",
+    "movieTitle": "Ad",
+    "genre": "Tür",
+    "duration": "Süre (dakika)",
+    "description": "Açıklama",
+    "posterUrl": "Afiş adresi (isteğe bağlı)",
+    "minutes": "{count} dk",
+    "newShowtime": "Yeni seans",
+    "bulkAdd": "Toplu ekle",
+    "movie": "Film",
+    "hall": "Salon",
+    "format": "Format",
+    "date": "Tarih",
+    "time": "Saat",
+    "times": "Saatler, virgülle ayrılmış",
+    "from": "Başlangıç",
+    "to": "Bitiş",
+    "price": "Fiyat (₺)",
+    "add": "Ekle",
+    "added": "Eklendi",
+    "bulkResult": "{created} eklendi, {skipped} atlandı",
+    "skipped": "{time} atlandı: {reason}",
+    "reasons": {
+      "PAST": "geçmişte",
+      "HALL_BUSY": "salon dolu",
+      "FORMAT_NOT_IN_HALL": "format bu salonda yok"
+    },
+    "noShowtimes": "Bu günde seans yok.",
+    "soldOf": "{seats} koltuktan {sold} satıldı",
+    "until": "{time}'e kadar",
+    "cancelShowtime": "İptal et",
+    "cancelTitle": "{time} {movie} seansı iptal edilsin mi?",
+    "cancelWarning": "{count, plural, =0 {Henüz bilet satılmadı.} other {# bilet iade edilecek ve alıcılara e-posta gidecek.}}",
+    "reason": "Sebep",
+    "confirmCancel": "İptal et ve iade et",
+    "keep": "Vazgeç",
+    "cancelled": "İptal edildi",
+    "cancelledResult": "Seans iptal edildi; {refunded} sipariş iade edildi.",
+    "searchOrders": "E-posta ya da sipariş no",
+    "search": "Ara",
+    "refund": "İade et",
+    "refundTitle": "Bu sipariş iade edilsin mi? Biletleri iptal edilir ve alıcıya e-posta gider.",
+    "confirmRefund": "İade et",
+    "refunded": "İade edildi",
+    "noOrders": "Sipariş bulunamadı.",
+    "usedTickets": "{count, plural, =0 {} other {# tanesi kapıda kullanıldı}}",
+    "orderStatus": {
+      "PENDING": "Bekliyor",
+      "PAID": "Ödendi",
+      "FAILED": "Başarısız",
+      "REFUNDED": "İade edildi"
+    },
+    "channel": {
+      "WEB": "Web",
+      "MOBILE": "Uygulama",
+      "KIOSK": "Gişe"
+    },
+    "payment": {
+      "CARD": "Kart",
+      "CASH": "Nakit"
+    }
   }
 }

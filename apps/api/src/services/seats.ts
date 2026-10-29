@@ -22,7 +22,7 @@ async function loadSeatMapBase(showtimeId: string) {
       },
     },
   });
-  if (!showtime) return null;
+  if (!showtime || showtime.cancelledAt) return null;
   const tickets = await prisma.ticket.findMany({
     where: { showtimeId, status: { not: "CANCELLED" } },
     select: { seatId: true },

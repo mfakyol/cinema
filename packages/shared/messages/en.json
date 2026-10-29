@@ -109,6 +109,13 @@
     "FORMAT_IN_USE": "Upcoming showtimes in this hall use that format.",
     "HALL_IN_USE": "Seats in this hall are sold or held, so its plan cannot change.",
     "INVALID_LAYOUT": "This layout cannot be used; check its rows.",
+    "SHOWTIME_CANCELLED": "This showtime was cancelled.",
+    "SHOWTIME_IN_PAST": "A showtime must start in the future.",
+    "FORMAT_NOT_IN_HALL": "This hall cannot show that format.",
+    "HALL_BUSY": "The hall is busy at that time (film plus cleaning).",
+    "ALREADY_CANCELLED": "This showtime is already cancelled.",
+    "ORDER_USED": "A ticket of this order was already used at the door.",
+    "NOT_REFUNDABLE": "Only a paid order can be refunded.",
     "generic": "Something went wrong. Please try again."
   },
   "order": {
@@ -125,7 +132,8 @@
     "linkCopied": "Link copied",
     "calendarDescription": "Seats: {seats}. Show your QR codes at the entrance: {link}",
     "shareTicket": "Share ticket",
-    "shareTicketText": "Your ticket for {movie} ({seat}). Show the QR code at the entrance."
+    "shareTicketText": "Your ticket for {movie} ({seat}). Show the QR code at the entrance.",
+    "refunded": "This order was refunded: {reason}"
   },
   "email": {
     "subject": "Your tickets for {movie}",
@@ -133,7 +141,12 @@
     "details": "{movie} · {showtime} · {hall}",
     "showTickets": "Show my tickets",
     "linkHint": "Open this link at the entrance to show your QR codes. Anyone with the link can see the tickets, so keep it to yourself.",
-    "concessions": "Snacks, drinks and glasses"
+    "concessions": "Snacks, drinks and glasses",
+    "refundSubject": "Refunded: {movie}",
+    "refundGreeting": "Your order was refunded.",
+    "refundDetails": "{movie} · {showtime} · {hall} — {amount} goes back to you.",
+    "refundReason": "Reason: {reason}",
+    "refundLinkHint": "The tickets in this order are cancelled. Card payments come back to the card in a few days; cash is given back at the box office."
   },
   "app": {
     "tabMovies": "Movies",
@@ -332,6 +345,71 @@
     "delete": "Delete",
     "deleted": "Deleted",
     "inUseHint": "Halls are built from this layout, so it cannot be deleted.",
-    "reapplyHint": "Halls built from this layout keep their seats until you apply it to them again."
+    "reapplyHint": "Halls built from this layout keep their seats until you apply it to them again.",
+    "movies": "Movies",
+    "showtimes": "Showtimes",
+    "orders": "Orders",
+    "newMovie": "New movie",
+    "editMovie": "Edit",
+    "movieTitle": "Title",
+    "genre": "Genre",
+    "duration": "Duration (minutes)",
+    "description": "Description",
+    "posterUrl": "Poster URL (optional)",
+    "minutes": "{count} min",
+    "newShowtime": "New showtime",
+    "bulkAdd": "Add in bulk",
+    "movie": "Movie",
+    "hall": "Hall",
+    "format": "Format",
+    "date": "Date",
+    "time": "Time",
+    "times": "Times, comma separated",
+    "from": "From",
+    "to": "To",
+    "price": "Price (₺)",
+    "add": "Add",
+    "added": "Added",
+    "bulkResult": "{created} added, {skipped} skipped",
+    "skipped": "Skipped {time}: {reason}",
+    "reasons": {
+      "PAST": "in the past",
+      "HALL_BUSY": "hall busy",
+      "FORMAT_NOT_IN_HALL": "format not in this hall"
+    },
+    "noShowtimes": "No showtimes on this day.",
+    "soldOf": "{sold} of {seats} sold",
+    "until": "until {time}",
+    "cancelShowtime": "Cancel",
+    "cancelTitle": "Cancel {movie} at {time}?",
+    "cancelWarning": "{count, plural, =0 {No tickets sold yet.} one {# ticket will be refunded and its buyer emailed.} other {# tickets will be refunded and their buyers emailed.}}",
+    "reason": "Reason",
+    "confirmCancel": "Cancel and refund",
+    "keep": "Keep",
+    "cancelled": "Cancelled",
+    "cancelledResult": "Showtime cancelled; {refunded} orders refunded.",
+    "searchOrders": "Email or order number",
+    "search": "Search",
+    "refund": "Refund",
+    "refundTitle": "Refund this order? Its tickets are cancelled and the buyer is emailed.",
+    "confirmRefund": "Refund",
+    "refunded": "Refunded",
+    "noOrders": "No orders found.",
+    "usedTickets": "{count, plural, =0 {} one {# used at the door} other {# used at the door}}",
+    "orderStatus": {
+      "PENDING": "Pending",
+      "PAID": "Paid",
+      "FAILED": "Failed",
+      "REFUNDED": "Refunded"
+    },
+    "channel": {
+      "WEB": "Web",
+      "MOBILE": "App",
+      "KIOSK": "Box office"
+    },
+    "payment": {
+      "CARD": "Card",
+      "CASH": "Cash"
+    }
   }
 }

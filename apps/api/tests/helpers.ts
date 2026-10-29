@@ -5,8 +5,9 @@ import { createApp } from "../src/app.js";
 import { prisma } from "../src/db.js";
 import { redis } from "../src/infra/redis.js";
 import { signToken } from "../src/lib/jwt.js";
-import { processOnce } from "../src/messaging/consumer.js";
+import { type Handler, processOnce } from "../src/messaging/consumer.js";
 import { FAKE_SIGNATURE_HEADER, fakePaymentEvent, signFakeWebhook } from "../src/payments/fake-provider.js";
+import { recordRefund, refundPayment, sendRefundEmail } from "../src/workers/order-refunded.js";
 import { queueKioskPrint, recordSale, sendTicketEmail } from "../src/workers/ticket-issued.js";
 
 const app = createApp();
@@ -149,14 +150,21 @@ export function checkout(
   });
 }
 
-const WORKERS = [
-  { name: "email", handler: sendTicketEmail },
-  { name: "kiosk-print", handler: queueKioskPrint },
-  { name: "sales-stats", handler: recordSale },
-];
+const WORKERS: Record<string, { name: string; handler: Handler<{ orderId: string }> }[]> = {
+  "ticket.issued": [
+    { name: "email", handler: sendTicketEmail },
+    { name: "kiosk-print", handler: queueKioskPrint },
+    { name: "sales-stats", handler: recordSale },
+  ],
+  "order.refunded": [
+    { name: "refund-payment", handler: refundPayment },
+    { name: "refund-email", handler: sendRefundEmail },
+    { name: "refund-stats", handler: recordRefund },
+  ],
+};
 
 /**
- * Hands every unpublished outbox event to every worker, as the relay and RabbitMQ would, through
+ * Hands every unpublished outbox event to the workers of its type, as the relay and RabbitMQ would, through
  * the same processOnce the consumers use, then marks the events published. A handler that
  * throws is reported, not rethrown, like a message going to the retry queue.
  */
@@ -164,7 +172,7 @@ export async function runWorkers(): Promise<Record<string, "processed" | "duplic
   const events = await prisma.outboxEvent.findMany({ where: { publishedAt: null }, orderBy: { createdAt: "asc" } });
   const results: Record<string, "processed" | "duplicate" | "failed"> = {};
   for (const event of events) {
-    for (const { name, handler } of WORKERS) {
+    for (const { name, handler } of WORKERS[event.type] ?? []) {
       try {
         results[`${name}:${event.id}`] = await processOnce(name, event.id, event.payload as never, handler);
       } catch {

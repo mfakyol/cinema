@@ -19,9 +19,10 @@ export type Outcome =
   | { paid: true; providerRef: string }
   | { paid: false; reason?: string };
 
-export type SettleResult = "paid" | "failed" | "duplicate" | "already-settled" | "seat-taken";
+export type SettleResult = "paid" | "failed" | "duplicate" | "already-settled" | "seat-taken" | "showtime-cancelled";
 
 class SeatTakenError extends Error {}
+class ShowtimeCancelledError extends Error {}
 
 /** Records a webhook event; false when it was already recorded (a redelivery). */
 async function recordWebhook(tx: Prisma.TransactionClient, receipt: WebhookReceipt): Promise<boolean> {
@@ -56,6 +57,7 @@ async function moveFromPending(
  */
 export async function settleOrder(orderId: string, outcome: Outcome, receipt?: WebhookReceipt): Promise<SettleResult> {
   let issued: { holderId: string; showtimeId: string; seatIds: string[] } | undefined;
+  let refundLater: string | undefined;
   try {
     const result = await prisma.$transaction(async (tx): Promise<SettleResult> => {
       if (receipt && !(await recordWebhook(tx, receipt))) return "duplicate";
@@ -63,10 +65,17 @@ export async function settleOrder(orderId: string, outcome: Outcome, receipt?: W
         return (await moveFromPending(tx, orderId, { status: "FAILED" })) ? "failed" : "already-settled";
       }
       if (!(await moveFromPending(tx, orderId, { status: "PAID", providerRef: outcome.providerRef }))) {
+        const { status } = await tx.order.findUniqueOrThrow({ where: { id: orderId }, select: { status: true } });
+        // Paid for an order that had already failed (its showtime was cancelled): give it back.
+        if (status === "FAILED") refundLater = outcome.providerRef;
         return "already-settled";
       }
 
-      const order = await tx.order.findUniqueOrThrow({ where: { id: orderId }, include: { items: true } });
+      const order = await tx.order.findUniqueOrThrow({
+        where: { id: orderId },
+        include: { items: true, showtime: { select: { cancelledAt: true } } },
+      });
+      if (order.showtime.cancelledAt) throw new ShowtimeCancelledError();
       try {
         await tx.ticket.createMany({
           data: order.seatIds.map((seatId) => ({
@@ -95,15 +104,16 @@ export async function settleOrder(orderId: string, outcome: Outcome, receipt?: W
     });
 
     if (issued) await afterSale(issued);
+    if (refundLater) await paymentProvider.refund(refundLater);
     return result;
   } catch (error) {
-    if (!(error instanceof SeatTakenError)) throw error;
+    if (!(error instanceof SeatTakenError || error instanceof ShowtimeCancelledError)) throw error;
     const failed = await prisma.$transaction(async (tx) => {
       if (receipt && !(await recordWebhook(tx, receipt))) return false;
       return moveFromPending(tx, orderId, { status: "FAILED" });
     });
     if (failed && outcome.paid) await paymentProvider.refund(outcome.providerRef);
-    return "seat-taken";
+    return error instanceof SeatTakenError ? "seat-taken" : "showtime-cancelled";
   }
 }
 

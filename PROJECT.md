@@ -109,6 +109,12 @@ A request, a webhook or a message can arrive twice; each layer turns the repeat 
 3. Each consumer queue gets a copy. A failing message is copied to `<queue>.retry` with `x-attempts` raised and comes back after the delay; after 5 attempts it is parked in `<queue>.dlq`.
 4. Delivery is at least once end to end, made exactly once in effect by step 5 of the idempotency layers. Email is the one side effect outside the database, so in the rare case a send succeeds and the commit then fails, the email goes out twice.
 
+### Cancellations and refunds
+
+An admin can refund one order or cancel a whole showtime. Both run the same transaction: the order moves `PAID → REFUNDED` with a conditional update, its tickets and vouchers move to `CANCELLED` (freeing the seats under the partial unique index), and an outbox row `order.refunded {orderId}` is written. A single order is refused once any of its tickets was scanned at the door; the check and the scan's conditional update cannot both win. Cancelling a showtime marks it `cancelledAt` first, so new holds, checkouts and late payment webhooks are refused (a payment that lands afterwards is failed and refunded), then refunds every paid order and drops the Redis holds.
+
+Three consumers handle `order.refunded`: `order-refunded.payment` returns card payments through the payment provider, `order-refunded.email` tells the buyer with the reason and the order link, and `order-refunded.sales-stats` records the refund in `daily_sales`.
+
 The QR code images are not stored: they are drawn from the signed token whenever asked for.
 
 ## Data model
@@ -122,8 +128,8 @@ Eleven domain tables (user, movie, hall layout, hall, seat, showtime, order, tic
 | HallLayout | id, name, rows (JSON: row label + cells) | Seating plans: S standard, V VIP, W wheelchair, _ aisle |
 | Hall | id, name, layoutId?, formats (TWO_D / THREE_D / IMAX / IMAX_3D) | A showtime's format must be one the hall supports |
 | Seat | id, hallId, row (A, B…), number, column, type (STANDARD / VIP / WHEELCHAIR) | Built from the hall layout; column keeps aisles. Unique: hallId + row + number |
-| Showtime | id, movieId, hallId, startsAt, price, format | price is the list price; discounts are applied automatically. No overlapping showtimes in the same hall |
-| Order | id, holderId, userId?, amount, status (PENDING / PAID / FAILED), provider, paymentMethod, providerRef?, showtimeId, seatIds, seatPrice, channel, locale, contactEmail?, accessToken, createdAt | Groups the tickets bought in one payment; a PENDING order carries the seats and price to issue when the webhook confirms it. accessToken is unique |
+| Showtime | id, movieId, hallId, startsAt, price, format, cancelledAt?, cancelReason? | price is the list price; discounts are applied automatically. No overlapping showtimes in the same hall |
+| Order | id, holderId, userId?, amount, status (PENDING / PAID / FAILED / REFUNDED), refundedAt?, refundReason?, provider, paymentMethod, providerRef?, showtimeId, seatIds, seatPrice, channel, locale, contactEmail?, accessToken, createdAt | Groups the tickets bought in one payment; a PENDING order carries the seats and price to issue when the webhook confirms it. accessToken is unique |
 | Ticket | id, orderId, showtimeId, seatId, userId?, status (PAID / USED / CANCELLED), qrToken, channel (WEB / MOBILE / KIOSK), createdAt | Unique: showtimeId + seatId (among non-cancelled tickets) |
 | Product | id, name (JSON by language), description?, category (COMBO / SNACK / DRINK / GLASSES), price, sortOrder, active | The concession stand; 3D glasses are sold only for 3D and IMAX 3D showtimes |
 | OrderItem | id, orderId, productId, quantity, unitPrice | Price at the time of sale |
@@ -193,7 +199,14 @@ REST endpoints live under `/api`; real-time events go to per-showtime rooms.
 | GET, POST | /admin/halls | List halls (seats, upcoming showtimes, sales), create one, optionally from a layout | Admin |
 | PATCH | /admin/halls/:id | Rename, change formats (not ones upcoming showtimes use) | Admin |
 | PUT | /admin/halls/:id/layout | Rebuild a hall's seats from a layout; refused once it has sales | Admin |
-| CRUD | /admin/movies, /admin/showtimes | Administration (next) | Admin |
+| GET, POST | /admin/movies | List movies (with upcoming showtimes), add one | Admin |
+| PUT | /admin/movies/:id | Edit a movie | Admin |
+| GET | /admin/showtimes?from&to | Showtimes in a range, cancelled ones included, with seats sold | Admin |
+| POST | /admin/showtimes | Add one; refused in the past, in a format the hall lacks, or overlapping another showtime plus the 25-minute turnaround | Admin |
+| POST | /admin/showtimes/bulk | Add the same showtime at given times over a date range (up to 92 days); reports what it skipped and why | Admin |
+| POST | /admin/showtimes/:id/cancel | Cancel with a reason; refunds every paid order | Admin |
+| GET | /admin/orders?q= | Recent orders, or search by email or order number | Admin |
+| POST | /admin/orders/:id/refund | Refund one order with a reason, unless a ticket was already used | Admin |
 | GET | /admin/reports/sales | Sales and occupancy report | Admin |
 
 Socket.io:
@@ -222,7 +235,8 @@ These are the defaults; changes are recorded here.
 | Formats | 2D, 3D, IMAX and IMAX 3D; each hall lists the formats it supports and the same movie can run in several formats on one day |
 | Discounts | Automatic flags from the start time, in cinema time: Wednesday is people's day (50% off); other weekdays before 17:00 get 15% off; at most one applies |
 | Concessions | Products with their own QR codes per unit, collected at the stand; staff pick Door or Stand mode in the staff app |
-| Hall layouts | Reusable seating plans (rows of S/W/_ cells) that halls are built from; the admin panel will create and assign them |
+| Hall layouts | Reusable seating plans (rows of S/W/_ cells) that halls are built from and assigned to in the admin panel |
+| Refunds | Whole orders only, with a reason the buyer sees; an order with a scanned ticket cannot be refunded. Rescheduling, pausing sales and partial refunds come later |
 | Movie data | Now-playing movies from TMDB (titles, runtimes, genres, poster links) in `apps/api/prisma/movies.json`; descriptions are written by us; TMDB is credited in the apps |
 
 ## Roadmap

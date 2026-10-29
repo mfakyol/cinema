@@ -28,7 +28,7 @@ const priced = ({ price, startsAt }: { price: number; startsAt: string }) =>
 export async function listShowtimes(from: Date, to: Date) {
   const rows = await cached("showtimes", `range:${from.toISOString()}:${to.toISOString()}`, LIST_TTL_SECONDS, async () => {
     const showtimes = await prisma.showtime.findMany({
-      where: { startsAt: { gte: from, lt: to } },
+      where: { startsAt: { gte: from, lt: to }, cancelledAt: null },
       include: {
         hall: { select: { id: true, name: true, _count: { select: { seats: true } } } },
         movie: { select: { id: true, title: true, durationMin: true, genre: true, posterUrl: true } },
@@ -64,7 +64,7 @@ export async function listShowtimes(from: Date, to: Date) {
 export async function listMovieShowtimes(movieId: string) {
   const rows = await cached("showtimes", `movie:${movieId}`, LIST_TTL_SECONDS, async () => {
     const showtimes = await prisma.showtime.findMany({
-      where: { movieId, startsAt: { gt: new Date() } },
+      where: { movieId, startsAt: { gt: new Date() }, cancelledAt: null },
       include: { hall: { select: { id: true, name: true } } },
       orderBy: { startsAt: "asc" },
     });

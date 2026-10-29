@@ -101,9 +101,10 @@ async function sell(auth: AuthClaims, input: SaleInput): Promise<{ status: 201 |
   }
   const showtime = await prisma.showtime.findUnique({
     where: { id: input.showtimeId },
-    select: { price: true, startsAt: true, format: true },
+    select: { price: true, startsAt: true, format: true, cancelledAt: true },
   });
   if (!showtime) throw new HttpError(404, "NOT_FOUND", "Showtime not found");
+  if (showtime.cancelledAt) throw new HttpError(409, "SHOWTIME_CANCELLED", "This showtime was cancelled");
   const lines = await priceItems(input.items, showtime.format);
 
   const seatIds = holds.map((hold) => hold.seatId);

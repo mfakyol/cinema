@@ -1,5 +1,5 @@
 import type { Channel } from "amqplib";
-import { TICKET_ISSUED } from "./events.js";
+import { ORDER_REFUNDED, TICKET_ISSUED } from "./events.js";
 
 /** All events go through one topic exchange; the routing key is the event type. */
 export const EVENTS_EXCHANGE = "sinema.events";
@@ -13,14 +13,27 @@ export const QUEUES = {
   email: "ticket-issued.email",
   kioskPrint: "ticket-issued.kiosk-print",
   salesStats: "ticket-issued.sales-stats",
+  refundPayment: "order-refunded.payment",
+  refundEmail: "order-refunded.email",
+  refundStats: "order-refunded.sales-stats",
 } as const;
+
+/** The event each queue receives. */
+export const QUEUE_EVENTS: Record<string, string> = {
+  [QUEUES.email]: TICKET_ISSUED,
+  [QUEUES.kioskPrint]: TICKET_ISSUED,
+  [QUEUES.salesStats]: TICKET_ISSUED,
+  [QUEUES.refundPayment]: ORDER_REFUNDED,
+  [QUEUES.refundEmail]: ORDER_REFUNDED,
+  [QUEUES.refundStats]: ORDER_REFUNDED,
+};
 
 export const retryQueue = (queue: string) => `${queue}.retry`;
 export const deadLetterQueue = (queue: string) => `${queue}.dlq`;
 
 /**
  * Declares the exchange and, per consumer queue:
- *   <queue>        bound to ticket.issued, where the worker consumes;
+ *   <queue>        bound to its event (QUEUE_EVENTS), where the worker consumes;
  *   <queue>.retry  no consumer; a message waits RETRY_DELAY_MS, then dead-letters back to <queue>;
  *   <queue>.dlq    where a message lands after MAX_ATTEMPTS failures, for a person to look at.
  * Declaring is idempotent, so every process does it on start.
@@ -29,7 +42,7 @@ export async function assertTopology(channel: Channel): Promise<void> {
   await channel.assertExchange(EVENTS_EXCHANGE, "topic", { durable: true });
   for (const queue of Object.values(QUEUES)) {
     await assertQueueWithRetry(channel, queue);
-    await channel.bindQueue(queue, EVENTS_EXCHANGE, TICKET_ISSUED);
+    await channel.bindQueue(queue, EVENTS_EXCHANGE, QUEUE_EVENTS[queue]!);
   }
 }
 

@@ -67,7 +67,7 @@ export const newIdempotencyKey = (): string =>
 
 interface SettledOrder {
   id: string;
-  status: "PENDING" | "PAID" | "FAILED";
+  status: string;
 }
 
 /**

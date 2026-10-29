@@ -32,9 +32,13 @@ export async function getOrderByAccessToken(accessToken: string) {
       },
     },
   });
-  if (!order || order.status !== "PAID") throw new HttpError(404, "NOT_FOUND", "Order not found");
+  if (!order || (order.status !== "PAID" && order.status !== "REFUNDED")) {
+    throw new HttpError(404, "NOT_FOUND", "Order not found");
+  }
   return {
     id: order.id,
+    status: order.status,
+    refundReason: order.refundReason,
     amount: order.amount,
     createdAt: order.createdAt,
     email: order.contactEmail ? maskEmail(order.contactEmail) : null,

@@ -5,5 +5,6 @@ export * from "./constants.js";
 export * from "./i18n.js";
 export * from "./layouts.js";
 export * from "./pricing.js";
+export * from "./schedule.js";
 export * from "./schemas.js";
 export * from "./tickets.js";

@@ -195,3 +195,17 @@ export async function heldCounts(showtimeIds: string[]): Promise<Map<string, num
 export async function forgetExpiredHold(showtimeId: string, seatId: string): Promise<void> {
   await redis.zrem(showtimeKey(showtimeId), seatId);
 }
+
+/**
+ * Drops every hold in a showtime, e.g. when it is cancelled. Holders' own sets keep a stale
+ * member for a while; it is ignored because the seat key is gone.
+ */
+export async function releaseShowtimeHolds(showtimeId: string): Promise<string[]> {
+  const seatIds = await redis.zrange(showtimeKey(showtimeId), "0", "-1");
+  const pipeline = redis.pipeline();
+  for (const seatId of seatIds) pipeline.del(holdKey(showtimeId, seatId));
+  pipeline.del(showtimeKey(showtimeId));
+  await pipeline.exec();
+  return seatIds;
+}
+
