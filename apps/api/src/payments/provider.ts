@@ -1,8 +1,12 @@
+import type { CardInput } from "@sinema/shared";
+
 export interface ChargeRequest {
   /** Our order id, sent to the provider as its reference. */
   orderId: string;
   /** Amount in cents. */
   amount: number;
+  /** The card as typed on the payment step; only passed on, never stored. */
+  card?: CardInput;
   simulate?: "success" | "decline";
 }
 

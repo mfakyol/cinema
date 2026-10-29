@@ -1,6 +1,6 @@
 "use client";
 
-import { checkoutSchema } from "@sinema/shared";
+import { type CardInput, checkoutSchema } from "@sinema/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircleCheck } from "lucide-react";
 import Link from "next/link";
@@ -22,6 +22,7 @@ import { useSession } from "@/lib/session";
 import { PurchaseSteps } from "../purchase-steps";
 import { ShowtimeHeader } from "@/components/showtime-header";
 import { useSeatHold } from "@/lib/use-seat-hold";
+import { type CardDraft, CardForm, initialCard, validCard } from "./card-form";
 
 /** Step 3 of 3: the basket (tickets and items), the email for the tickets, and payment. */
 export function CheckoutStep({ id }: { id: string }) {
@@ -45,15 +46,19 @@ export function CheckoutStep({ id }: { id: string }) {
     .filter((product) => cart.quantities.has(product.id))
     .map((product) => ({ product, quantity: cart.quantities.get(product.id)! }));
 
+  // Filled with the approved test card; the declined one is a tap away.
+  const [card, setCard] = useState<CardDraft>(initialCard);
+  const readyCard = validCard(card);
+
   const pay = useMutation({
-    mutationFn: (simulate: "success" | "decline") =>
+    mutationFn: (payWith: CardInput) =>
       checkoutAndWait<Order>("/checkout", {
         showtimeId: id,
         channel: "WEB",
         email,
         locale,
         items: lines.map(({ product, quantity }) => ({ productId: product.id, quantity })),
-        simulate,
+        card: payWith,
       }),
     onSuccess: (order) => {
       setPurchased(order);
@@ -165,22 +170,14 @@ export function CheckoutStep({ id }: { id: string }) {
                 {t("order.emailHint")}
               </p>
             </div>
+            <CardForm card={card} onChange={setCard} />
             <Button
               className="w-full"
               size="lg"
-              disabled={holdLost || !emailValid || pay.isPending}
-              onClick={() => pay.mutate("success")}
+              disabled={holdLost || !emailValid || !readyCard || pay.isPending}
+              onClick={() => readyCard && pay.mutate(readyCard)}
             >
               {t("seats.pay", { amount: price(total) })}
-            </Button>
-            <Button
-              variant="link"
-              size="sm"
-              className="w-full text-muted-foreground"
-              disabled={holdLost || !emailValid || pay.isPending}
-              onClick={() => pay.mutate("decline")}
-            >
-              {t("seats.payDeclined")}
             </Button>
           </CardContent>
         </Card>

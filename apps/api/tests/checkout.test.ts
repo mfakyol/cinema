@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { prisma } from "../src/db.js";
 import { heldBy, showtimeHolds } from "../src/holds/seat-holds.js";
+import { fakeOutcome } from "../src/payments/fake-provider.js";
+import { TEST_CARDS } from "@sinema/shared";
 import {
   api,
   bearer,
@@ -94,6 +96,22 @@ describe("checkout", () => {
 
     // A new attempt (a new key) goes through.
     await checkout(token, showtime.id).expect(201);
+  });
+
+  it("takes a card on the payment step and checks it", async () => {
+    const { showtime, seats } = await createFixture();
+    const { token } = await createUser();
+    await lock(token, showtime.id, [seats[0]!.id]).expect(201);
+
+    const bad = await startCheckout(token, showtime.id, { card: { ...TEST_CARDS.approved, number: "4242424242424241" } }).expect(400);
+    expect(bad.body.error.code).toBe("VALIDATION");
+    const expired = await startCheckout(token, showtime.id, { card: { ...TEST_CARDS.approved, expiry: "01/20" } }).expect(400);
+    expect(expired.body.error.code).toBe("VALIDATION");
+    await startCheckout(token, showtime.id, { card: TEST_CARDS.approved }).expect(202);
+
+    // The fake provider approves the approved test card and declines the declined one.
+    expect(fakeOutcome({ orderId: "o", amount: 1, card: TEST_CARDS.approved })).toBe("payment.succeeded");
+    expect(fakeOutcome({ orderId: "o", amount: 1, card: TEST_CARDS.declined })).toBe("payment.failed");
   });
 
   it("requires holds first", async () => {

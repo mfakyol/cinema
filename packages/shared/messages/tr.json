@@ -191,7 +191,17 @@
     "lineQuantity": "{count} × {price}",
     "sendTo": "Biletler ve ürün kodları {email} adresine gönderilecek.",
     "holdLost": "Koltuk ayırma süren doldu. Koltuklarını yeniden seç.",
-    "backToSeats": "Koltuklara dön"
+    "backToSeats": "Koltuklara dön",
+    "card": "Kart",
+    "cardHolder": "Kart üzerindeki isim",
+    "cardNumber": "Kart numarası",
+    "cardExpiry": "Son kullanma (AA/YY)",
+    "cardCvc": "CVC",
+    "testCards": "Test kartları:",
+    "testApproved": "Onaylanan",
+    "testDeclined": "Reddedilen",
+    "cardInvalid": "Kart bilgilerini kontrol et.",
+    "cardNotStored": "Kart bilgisi ödeme sağlayıcısına gider ve hiçbir yerde saklanmaz."
   },
   "concessions": {
     "notFound": "Bu ürün bulunamadı. Bağlantıyı kontrol et.",

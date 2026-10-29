@@ -142,7 +142,7 @@ async function sell(auth: AuthClaims, input: SaleInput): Promise<{ status: 201 |
     return { status: 201, order: await loadOrder(order.id) };
   }
 
-  const { providerRef } = await paymentProvider.charge({ orderId: order.id, amount, simulate: input.simulate });
+  const { providerRef } = await paymentProvider.charge({ orderId: order.id, amount, card: input.card, simulate: input.simulate });
   await prisma.order.updateMany({ where: { id: order.id, status: "PENDING" }, data: { providerRef } });
   return { status: 202, order: await loadOrder(order.id) };
 }

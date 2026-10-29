@@ -1,4 +1,5 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { TEST_CARDS } from "@sinema/shared";
 import { env } from "../env.js";
 import { HttpError } from "../lib/http-error.js";
 import type { ChargeAccepted, ChargeRequest, PaymentEvent, PaymentProvider } from "./provider.js";
@@ -15,10 +16,18 @@ export function fakePaymentEvent(event: Omit<PaymentEvent, "id"> & { id?: string
   return { ...event, id: event.id ?? `evt_${randomUUID()}` };
 }
 
+/** What the fake provider decides for a charge: the declined test card (or a simulated decline) fails. */
+export function fakeOutcome(request: ChargeRequest): "payment.succeeded" | "payment.failed" {
+  return request.simulate === "decline" || request.card?.number === TEST_CARDS.declined.number
+    ? "payment.failed"
+    : "payment.succeeded";
+}
+
 /**
  * Behaves like a card gateway: a charge is only accepted at first, and the result is sent later
  * to our webhook, signed, the way real providers do. Like them it retries a delivery that
- * fails, so the webhook may see an event more than once. Declines when asked to.
+ * fails, so the webhook may see an event more than once. Declines the declined test card (and
+ * when asked to); approves any other card.
  */
 export class FakeProvider implements PaymentProvider {
   readonly name = "fake";
@@ -26,7 +35,7 @@ export class FakeProvider implements PaymentProvider {
   async charge(request: ChargeRequest): Promise<ChargeAccepted> {
     const providerRef = `fake_${randomUUID()}`;
     const event = fakePaymentEvent(
-      request.simulate === "decline"
+      fakeOutcome(request) === "payment.failed"
         ? { type: "payment.failed", orderId: request.orderId, providerRef, reason: "Card declined" }
         : { type: "payment.succeeded", orderId: request.orderId, providerRef },
     );

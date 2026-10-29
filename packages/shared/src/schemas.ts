@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { cardSchema } from "./cards.js";
 import { MAX_ITEM_QUANTITY, MAX_LOCKS_PER_HOLDER } from "./constants.js";
 import { LOCALES } from "./i18n.js";
 
@@ -39,6 +40,8 @@ export const checkoutSchema = z.object({
     .array(z.object({ productId: z.uuid(), quantity: z.number().int().min(1).max(MAX_ITEM_QUANTITY) }))
     .max(20)
     .default([]),
+  /** The card to charge, passed to the payment provider and never stored. */
+  card: cardSchema.optional(),
   /** Lets demos and tests trigger a declined payment with the fake provider. */
   simulate: z.enum(["success", "decline"]).default("success"),
 });

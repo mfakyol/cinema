@@ -191,7 +191,17 @@
     "lineQuantity": "{count} × {price}",
     "sendTo": "Tickets and item codes go to {email}.",
     "holdLost": "Your seat hold ran out. Pick your seats again.",
-    "backToSeats": "Back to seats"
+    "backToSeats": "Back to seats",
+    "card": "Card",
+    "cardHolder": "Name on card",
+    "cardNumber": "Card number",
+    "cardExpiry": "Expiry (MM/YY)",
+    "cardCvc": "CVC",
+    "testCards": "Test cards:",
+    "testApproved": "Approved",
+    "testDeclined": "Declined",
+    "cardInvalid": "Check the card details.",
+    "cardNotStored": "The card goes to the payment provider and is never stored."
   },
   "concessions": {
     "notFound": "This item could not be found. Check the link.",
